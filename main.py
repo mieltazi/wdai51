@@ -18,16 +18,18 @@ from models import User, Product, Order, GlobalMessage, PrivateMessage, BlockedU
 SECRET_KEY = "tradeflow_super_secret"
 
 # ==========================================
-# КЛЮЧИ ПРИЛОЖЕНИЯ ВКОНТАКТЕ (Смотри инструкцию ниже)
-VK_CLIENT_ID = "ТВОЙ_АЙДИ_ПРИЛОЖЕНИЯ" 
-VK_CLIENT_SECRET = "ТВОЙ_СЕКРЕТНЫЙ_КЛЮЧ"
-VK_REDIRECT_URI = "http://localhost:8000/api/auth/vk/callback" # ЭТУ ССЫЛКУ МЫ ЗАМЕНИМ НА VERCEL
+# КЛЮЧИ ПРИЛОЖЕНИЯ ВКОНТАКТЕ
+VK_CLIENT_ID = "51944173"  # Твой реальный ID приложения
+VK_CLIENT_SECRET = "Твой_Секретный_Ключ" # Секретный ключ нужно будет добавить в Vercel
+VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback" # Твой реальный домен
 # ==========================================
 
-# --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL ---
+# --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL (ВАЖНО!) ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = FastAPI()
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
-# ------------------------------------
+# -------------------------------------------
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,11 +37,10 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     yield
 
+# Пересоздаем app с lifespan
 app = FastAPI(lifespan=lifespan)
-
-# --- ПОДКЛЮЧАЕМ ПАПКУ STATIC ДЛЯ VERCEL ---
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
-# -------------------------------------------
+
 
 async def get_current_user(authorization: str = Header(None), db: AsyncSession = Depends(get_db)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -57,13 +58,11 @@ async def get_current_user(authorization: str = Header(None), db: AsyncSession =
 # --- АВТОРИЗАЦИЯ ЧЕРЕЗ VK ID ---
 @app.get("/api/auth/vk")
 async def vk_login():
-    # Перенаправляем пользователя на официальную страницу входа ВК
     url = f"https://oauth.vk.com/authorize?client_id={VK_CLIENT_ID}&display=page&redirect_uri={VK_REDIRECT_URI}&scope=email&response_type=code&v=5.131"
     return RedirectResponse(url)
 
 @app.get("/api/auth/vk/callback")
 async def vk_callback(code: str, db: AsyncSession = Depends(get_db)):
-    # ВК возвращает нам код. Меняем его на ключ доступа (access_token)
     async with httpx.AsyncClient() as client:
         token_res = await client.get(f"https://oauth.vk.com/access_token?client_id={VK_CLIENT_ID}&client_secret={VK_CLIENT_SECRET}&redirect_uri={VK_REDIRECT_URI}&code={code}")
         token_data = token_res.json()
@@ -74,11 +73,9 @@ async def vk_callback(code: str, db: AsyncSession = Depends(get_db)):
         access_token = token_data["access_token"]
         vk_user_id = token_data["user_id"]
 
-        # Получаем имя, фамилию и аватарку пользователя
         user_res = await client.get(f"https://api.vk.com/method/users.get?user_ids={vk_user_id}&fields=photo_100&access_token={access_token}&v=5.131")
         user_info = user_res.json()["response"][0]
 
-    # Ищем пользователя в БД. Если нет - регистрируем.
     res = await db.execute(select(User).filter_by(vk_id=vk_user_id))
     user = res.scalar_one_or_none()
 
@@ -87,16 +84,14 @@ async def vk_callback(code: str, db: AsyncSession = Depends(get_db)):
             vk_id=vk_user_id,
             username=f"{user_info['first_name']} {user_info['last_name']}",
             avatar_url=user_info.get('photo_100'),
-            balance=5000.0 # Даем 5000р для теста
+            balance=5000.0
         )
         db.add(user)
         await db.commit()
         await db.refresh(user)
 
-    # Создаем наш токен для сайта
     token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
     
-    # Возвращаем пользователя на главную страницу и передаем токен
     return RedirectResponse(url=f"/?token={token}")
 
 @app.get("/api/user")

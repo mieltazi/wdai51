@@ -19,9 +19,9 @@ SECRET_KEY = "tradeflow_super_secret"
 
 # ==========================================
 # КЛЮЧИ ПРИЛОЖЕНИЯ ВКОНТАКТЕ
-VK_CLIENT_ID = "51944173"  # Твой реальный ID приложения
-VK_CLIENT_SECRET = "Твой_Секретный_Ключ" # Секретный ключ нужно будет добавить в Vercel
-VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback" # Твой реальный домен
+VK_CLIENT_ID = os.getenv("VK_CLIENT_ID") 
+VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET")
+VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback"
 # ==========================================
 
 # --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL (ВАЖНО!) ---
@@ -101,7 +101,12 @@ async def get_user(user: User = Depends(get_current_user)):
 # --- МАРКЕТПЛЕЙС ---
 @app.get("/")
 async def serve_frontend(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html")
+    # Передаем vk_client_id прямо в HTML шаблон!
+    return templates.TemplateResponse(
+        request=request, 
+        name="index.html", 
+        context={"vk_client_id": VK_CLIENT_ID}
+    )
 
 @app.get("/api/products")
 async def get_products(category: str = "All", subcategory: str = "Все", search: str = "", db: AsyncSession = Depends(get_db)):

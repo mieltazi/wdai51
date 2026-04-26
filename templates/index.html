@@ -7,6 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Подключаем Swiper.js для слайдера -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #070709; color: #ededed; overflow-x: hidden; }
         ::-webkit-scrollbar { width: 6px; }
@@ -24,7 +29,6 @@
         .glass-panel { background: rgba(12, 12, 14, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.04); }
         .glass-header { background: rgba(18, 18, 22, 0.6); backdrop-filter: blur(24px); }
         
-        /* АНИМАЦИИ ПЕРЕКЛЮЧЕНИЯ СТРАНИЦ */
         .page-section { display: none; opacity: 0; }
         .page-section.active { display: block; animation: fadeUp 0.4s ease forwards; }
         @keyframes fadeUp {
@@ -43,28 +47,17 @@
         .product-card { transition: all 0.3s; cursor: pointer; }
         .product-card:hover { transform: translateY(-5px); border-color: rgba(99,102,241,0.4); box-shadow: 0 10px 30px -10px rgba(99,102,241,0.2); }
 
-        /* --- НОВЫЕ КРУТЫЕ АНИМАЦИИ ДЛЯ ОШИБОК И УВЕДОМЛЕНИЙ --- */
-        #toast-container { 
-            position: fixed; bottom: 20px; right: 20px; z-index: 9999; 
-            display: flex; flex-direction: column; gap: 12px; pointer-events: none; 
-        }
-        @keyframes slideInRight {
-            0% { transform: translateX(120%); opacity: 0; }
-            80% { transform: translateX(-10px); opacity: 1; }
-            100% { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes fadeOutRight {
-            0% { transform: translateX(0); opacity: 1; }
-            100% { transform: translateX(120%); opacity: 0; }
-        }
-        .toast-anim {
-            animation: slideInRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-            pointer-events: auto;
-        }
-        .toast-anim.leaving {
-            animation: fadeOutRight 0.4s ease-in forwards;
-        }
-
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
+        @keyframes slideInRight { 0% { transform: translateX(120%); opacity: 0; } 80% { transform: translateX(-10px); opacity: 1; } 100% { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOutRight { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(120%); opacity: 0; } }
+        .toast-anim { animation: slideInRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: auto; }
+        .toast-anim.leaving { animation: fadeOutRight 0.4s ease-in forwards; }
+        
+        /* Стили для слайдера */
+        .swiper-slide { border-radius: 16px; overflow: hidden; }
+        .swiper-pagination-bullet { background: #fff; opacity: 0.3; }
+        .swiper-pagination-bullet-active { background: #4f46e5; opacity: 1; }
+        .swiper-button-next, .swiper-button-prev { color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); transform: scale(0.6); }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -73,7 +66,7 @@
 
     <header class="fixed top-6 left-1/2 -translate-x-1/2 w-[95%] max-w-5xl z-50 glass-header px-6 py-3 rounded-2xl flex justify-between items-center shadow-2xl border border-white/5">
         <div class="flex items-center gap-2 cursor-pointer" onclick="showPage('market')">
-            <img src="/static/images/icon.png" alt="Logo" class="w-8 h-8">
+            <img src="/static/images/icon.png" alt="Logo" class="w-8 h-8" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1175/1175080.png'">
             <h1 class="text-xl font-bold tracking-tight text-white hidden sm:block">Trade<span class="text-indigo-500">Flow</span></h1>
         </div>
         
@@ -100,10 +93,40 @@
 
     <main class="flex-1 mt-32 px-4 pb-12 max-w-6xl mx-auto w-full relative z-10">
         
-        <!-- ГЛАВНАЯ СТРАНИЦА -->
+        <!-- ГЛАВНАЯ СТРАНИЦА (МАРКЕТ) -->
         <section id="page-market" class="page-section active">
-            <h2 class="text-3xl font-bold text-white mb-8 text-center">Выберите игру или сервис</h2>
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="main-categories-grid"></div>
+            
+            <!-- СЛАЙДЕР С НОВОСТЯМИ/АКЦИЯМИ -->
+            <div class="swiper mySwiper mb-12 h-48 sm:h-64 shadow-2xl border border-white/5">
+                <div class="swiper-wrapper">
+                    <!-- Слайд 1 -->
+                    <div class="swiper-slide relative flex items-center justify-center cursor-pointer">
+                        <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover opacity-40">
+                        <div class="absolute inset-0 bg-gradient-to-r from-[#070709] via-transparent to-transparent"></div>
+                        <div class="relative z-10 text-left w-full px-12">
+                            <span class="bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded mb-3 inline-block">АКЦИЯ</span>
+                            <h2 class="text-3xl sm:text-4xl font-bold text-white mb-2">Весенняя распродажа!</h2>
+                            <p class="text-sm sm:text-lg text-gray-300">Скидки на аккаунты Dota 2 и CS2 до 50%</p>
+                        </div>
+                    </div>
+                    <!-- Слайд 2 -->
+                    <div class="swiper-slide relative flex items-center justify-center cursor-pointer">
+                        <img src="https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=1974&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover opacity-40">
+                        <div class="absolute inset-0 bg-gradient-to-r from-purple-900/80 to-transparent"></div>
+                        <div class="relative z-10 text-left w-full px-12">
+                            <span class="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded mb-3 inline-block">НОВИНКА</span>
+                            <h2 class="text-3xl sm:text-4xl font-bold text-white mb-2">Пополнение ключей Minecraft</h2>
+                            <p class="text-sm sm:text-lg text-gray-300">Официальные ключи Java & Bedrock Edition уже в наличии</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="swiper-pagination"></div>
+                <div class="swiper-button-next"></div>
+                <div class="swiper-button-prev"></div>
+            </div>
+
+            <!-- КОНТЕЙНЕР ДЛЯ КАТЕГОРИЙ (С ГЛОБАЛЬНЫМИ ГРУППАМИ) -->
+            <div id="main-categories-container" class="flex flex-col gap-10"></div>
         </section>
 
         <!-- КАТЕГОРИЯ ИГРЫ -->
@@ -252,39 +275,61 @@
 
     </main>
 
-<!-- МОДАЛКА ВХОДА ЧЕРЕЗ VK (ИСПРАВЛЕНО) -->
-<div id="auth-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
-    <div class="glass-panel border border-white/10 rounded-3xl p-10 max-w-sm w-full mx-4 relative animate-[fadeUp_0.3s_ease] text-center">
-        <button onclick="closeAuth()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class='bx bx-x text-2xl'></i></button>
-        
-        <div class="w-16 h-16 mx-auto bg-blue-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/30">
-            <i class='bx bxl-vk text-4xl text-white'></i>
-        </div>
-        
-        <h3 class="text-2xl font-bold text-white mb-2">Вход в TradeFlow</h3>
-        <p class="text-gray-400 text-sm mb-8">Для совершения покупок и продаж необходимо авторизоваться</p>
+    <!-- МОДАЛКА ВХОДА ЧЕРЕЗ VK -->
+    <div id="auth-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
+        <div class="glass-panel border border-white/10 rounded-3xl p-10 max-w-sm w-full mx-4 relative animate-[fadeUp_0.3s_ease] text-center">
+            <button onclick="closeAuth()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class='bx bx-x text-2xl'></i></button>
+            
+            <div class="w-16 h-16 mx-auto bg-blue-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/30">
+                <i class='bx bxl-vk text-4xl text-white'></i>
+            </div>
+            
+            <h3 class="text-2xl font-bold text-white mb-2">Вход в TradeFlow</h3>
+            <p class="text-gray-400 text-sm mb-8">Для совершения покупок и продаж необходимо авторизоваться</p>
 
-        <!-- ЭТО СТАРАЯ КНОПКА, КОТОРАЯ ВЕДЕТ НА НАШ PYTHON-БЭКЕНД. ОНА НАМ И НУЖНА! -->
-        <a href="/api/auth/vk" class="w-full bg-[#0077FF] hover:bg-[#0066eb] text-white py-4 rounded-xl font-bold transition flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(0,119,255,0.3)]">
-            <i class='bx bxl-vk text-2xl'></i> Войти через VK ID
-        </a>
-        
-        <p class="text-xs text-gray-500 mt-6">Мы не получаем доступ к вашим сообщениям и паролям.</p>
+            <!-- ИСПРАВЛЕННЫЙ ВИДЖЕТ ВКОНТАКТЕ -->
+<div class="flex justify-center w-full">
+  <script src="https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js"></script>
+  <script type="text/javascript">
+    if ('VKIDSDK' in window) {
+      const VKID = window.VKIDSDK;
+
+                  VKID.Config.init({
+                    redirectUrl: 'https://wdai51.vercel.app/api/auth/vk/callback',
+                    responseMode: VKID.ConfigResponseMode.Redirect,
+                    source: VKID.ConfigSource.LOWCODE,
+                    scope: '', 
+                  });
+
+                  const oneTap = new VKID.OneTap();
+
+                  oneTap.render({
+                    container: document.currentScript.parentElement,
+                    showAlternativeLogin: true
+                  });
+                }
+              </script>
+            </div>
+            <!-- КОНЕЦ ВИДЖЕТА ВКОНТАКТЕ -->
+            
+            <p class="text-xs text-gray-500 mt-6">Мы не получаем доступ к вашим сообщениям и паролям.</p>
+        </div>
     </div>
-</div>
 
     <!-- КОНТЕЙНЕР ДЛЯ ОШИБОК -->
     <div id="toast-container"></div>
 
     <script>
+        // --- ДОБАВИЛИ РОДИТЕЛЬСКУЮ КАТЕГОРИЮ (parent) ДЛЯ КАЖДОЙ ИГРЫ ---
         const CATEGORIES = {
-            "CS2": { icon: "bx-target-lock", color: "from-orange-500 to-red-600", subs:["Все", "Прайм-статус", "Скины", "Буст звания", "Аккаунты"] },
-            "Dota 2": { icon: "bxl-steam", color: "from-red-600 to-red-900", subs:["Все", "MMR Буст", "Аккаунты", "Предметы"] },
-            "Genshin Impact": { icon: "bx-star", color: "from-blue-400 to-indigo-500", subs:["Все", "Кристаллы", "Аккаунты", "Фарм"] },
-            "Valorant": { icon: "bx-crosshair", color: "from-red-400 to-red-600", subs:["Все", "Ранговые игры", "Аккаунты", "Points"] },
-            "Telegram": { icon: "bxl-telegram", color: "from-blue-400 to-blue-600", subs:["Все", "Premium", "Номера", "Каналы"] },
-            "Minecraft": { icon: "bx-cube", color: "from-green-500 to-green-700", subs:["Все", "Лицензии", "Донат"] },
-            "Другое": { icon: "bx-dots-horizontal-rounded", color: "from-gray-600 to-gray-800", subs:["Все", "Разное"] }
+            "CS2": { parent: "Компьютерные игры", icon: "bx-target-lock", color: "from-orange-500 to-red-600", subs:["Все", "Прайм-статус", "Скины", "Буст звания", "Аккаунты"] },
+            "Dota 2": { parent: "Компьютерные игры", icon: "bxl-steam", color: "from-red-600 to-red-900", subs:["Все", "MMR Буст", "Аккаунты", "Предметы"] },
+            "Valorant": { parent: "Компьютерные игры", icon: "bx-crosshair", color: "from-red-400 to-red-600", subs:["Все", "Ранговые игры", "Аккаунты", "Points"] },
+            "Genshin Impact": { parent: "Мобильные игры", icon: "bx-star", color: "from-blue-400 to-indigo-500", subs:["Все", "Кристаллы", "Аккаунты", "Фарм"] },
+            "Minecraft": { parent: "Компьютерные игры", icon: "bx-cube", color: "from-green-500 to-green-700", subs:["Все", "Лицензии", "Донат"] },
+            "Telegram": { parent: "Программы и сервисы", icon: "bxl-telegram", color: "from-blue-400 to-blue-600", subs:["Все", "Premium", "Номера", "Каналы"] },
+            "Discord": { parent: "Программы и сервисы", icon: "bxl-discord", color: "from-indigo-400 to-indigo-600", subs:["Все", "Nitro", "Сервера"] },
+            "Другое": { parent: "Разное", icon: "bx-dots-horizontal-rounded", color: "from-gray-600 to-gray-800", subs:["Все", "Разное"] }
         };
 
         let currentCategory = 'All', currentSubcategory = 'Все', currentSearch = '';
@@ -304,7 +349,6 @@
             return data;
         }
 
-        // ОБНОВЛЕННАЯ ФУНКЦИЯ УВЕДОМЛЕНИЙ С АНИМАЦИЕЙ
         function showToast(msg, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -325,7 +369,7 @@
             
             setTimeout(() => {
                 toast.classList.add('leaving');
-                setTimeout(() => toast.remove(), 400); // удаляем после анимации
+                setTimeout(() => toast.remove(), 400); 
             }, 4000);
         }
 
@@ -344,20 +388,54 @@
             if(navBtn) navBtn.classList.add('active');
             
             clearInterval(chatInterval);
-            if(pageId === 'market') renderCategories();
+            if(pageId === 'market') {
+                renderCategories();
+                // Инициализируем слайдер, если он еще не запущен
+                new Swiper(".mySwiper", {
+                    loop: true,
+                    autoplay: { delay: 4000, disableOnInteraction: false },
+                    pagination: { el: ".swiper-pagination", clickable: true },
+                    navigation: { nextEl: ".swiper-button-next", prevEl: ".swiper-button-prev" },
+                });
+            }
             if(pageId === 'purchases') loadPurchases();
             if(pageId === 'product' && currentChatUser) { loadPrivateChat(); chatInterval = setInterval(loadPrivateChat, 3000); }
         }
 
+        // ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ ОТРИСОВКИ ГЛОБАЛЬНЫХ КАТЕГОРИЙ
         function renderCategories() {
-            const grid = document.getElementById('main-categories-grid');
-            grid.innerHTML = '';
-            for (const[name, data] of Object.entries(CATEGORIES)) {
-                grid.innerHTML += `
-                    <div onclick="openCategoryView('${name}')" class="glass-panel p-6 rounded-2xl cursor-pointer hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(99,102,241,0.2)] transition-all duration-300 flex flex-col items-center text-center gap-3">
-                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br ${data.color} flex items-center justify-center shadow-lg"><i class='bx ${data.icon} text-3xl text-white'></i></div>
-                        <h3 class="text-lg font-bold text-white">${name}</h3>
-                    </div>`;
+            const container = document.getElementById('main-categories-container');
+            container.innerHTML = '';
+
+            // 1. Группируем игры по их родительским категориям
+            const groupedCategories = {};
+            for (const [gameName, data] of Object.entries(CATEGORIES)) {
+                if (!groupedCategories[data.parent]) {
+                    groupedCategories[data.parent] = {};
+                }
+                groupedCategories[data.parent][gameName] = data;
+            }
+
+            // 2. Отрисовываем каждую группу
+            for (const [parentName, games] of Object.entries(groupedCategories)) {
+                // Создаем заголовок группы
+                let html = `
+                <div class="mb-2">
+                    <h2 class="text-2xl font-bold text-white mb-4 pl-3 border-l-4 border-indigo-500">${parentName}</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                `;
+                
+                // Добавляем игры в эту группу
+                for (const [gameName, data] of Object.entries(games)) {
+                    html += `
+                        <div onclick="openCategoryView('${gameName}')" class="glass-panel p-6 rounded-2xl cursor-pointer hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(99,102,241,0.2)] transition-all duration-300 flex flex-col items-center text-center gap-3">
+                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br ${data.color} flex items-center justify-center shadow-lg"><i class='bx ${data.icon} text-3xl text-white'></i></div>
+                            <h3 class="text-lg font-bold text-white">${gameName}</h3>
+                        </div>`;
+                }
+                
+                html += `</div></div>`; // Закрываем grid и группу
+                container.innerHTML += html;
             }
         }
 
@@ -473,62 +551,6 @@
             } catch(e) { showToast(e.message, 'error'); }
         }
 
-        let isRegMode = false;
-        function toggleRegMode() {
-            isRegMode = !isRegMode;
-            document.getElementById('auth-title').innerText = isRegMode ? "Регистрация" : "Вход";
-            document.getElementById('login-fields').classList.toggle('hidden', isRegMode);
-            document.getElementById('register-fields').classList.toggle('hidden', !isRegMode);
-            document.getElementById('btn-login-submit').classList.toggle('hidden', isRegMode);
-            document.getElementById('btn-reg-submit').classList.toggle('hidden', !isRegMode);
-            document.getElementById('btn-toggle-reg').classList.toggle('hidden', isRegMode);
-            document.getElementById('btn-toggle-log').classList.toggle('hidden', !isRegMode);
-        }
-
-        async function sendCode() {
-            let email = document.getElementById('reg-email').value;
-            if(!email || !email.includes('@')) return showToast("Введите корректный email", "error");
-
-            let btn = document.getElementById('btn-send-code');
-            btn.innerText = "..."; btn.disabled = true;
-
-            try {
-                let res = await api('/api/auth/send-code', 'POST', { email: email });
-                showToast(res.message);
-                
-                let timer = 60;
-                let intv = setInterval(() => {
-                    timer--; btn.innerText = timer + "s";
-                    if(timer <= 0) { clearInterval(intv); btn.innerText = "Код"; btn.disabled = false; }
-                }, 1000);
-            } catch(e) {
-                showToast(e.message, 'error');
-                btn.innerText = "Код"; btn.disabled = false;
-            }
-        }
-
-        async function auth(type) {
-            let data = {};
-            if(type === 'login') {
-                data.username = document.getElementById('login-user').value;
-                data.password = document.getElementById('login-pass').value;
-                if(!data.username || !data.password) return showToast("Введите логин и пароль", "error");
-            } else {
-                data.email = document.getElementById('reg-email').value;
-                data.code = document.getElementById('reg-code').value;
-                data.username = document.getElementById('reg-user').value;
-                data.password = document.getElementById('reg-pass').value;
-                if(!data.email || !data.code || !data.username || !data.password) return showToast("Заполните все поля", "error");
-            }
-
-            try {
-                let res = await api(`/api/auth/${type}`, 'POST', data);
-                token = res.token; localStorage.setItem('tf_token', token);
-                updateProfile(res); closeAuth(); showToast("Успешно!");
-                if(activeProduct) showPage('product'); else showPage('market');
-            } catch(e) { showToast(e.message, 'error'); }
-        }
-
         function initSellForm() {
             const catSelect = document.getElementById('sell-category');
             catSelect.innerHTML = '';
@@ -565,46 +587,48 @@
             } catch(e) {}
         }
 
-// ПЕРЕХВАТ ТОКЕНА И ПЕРВИЧНАЯ ЗАГРУЗКА
-window.onload = async () => { // Добавляем async, чтобы использовать await
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlToken = urlParams.get('token');
-    const urlError = urlParams.get('error');
+        async function checkAuth() {
+            if(!token) return;
+            try {
+                let user = await api('/api/user');
+                document.getElementById('auth-section').classList.add('hidden');
+                let profileSection = document.getElementById('profile-section');
+                profileSection.classList.remove('hidden');
+                document.getElementById('ui-username').innerText = user.username;
+                document.getElementById('ui-balance').innerText = user.balance.toLocaleString('ru-RU');
+                if(user.avatar_url) {
+                    profileSection.querySelector('.w-10.h-10').innerHTML = `<img src="${user.avatar_url}" class="w-full h-full rounded-full object-cover shadow-lg">`;
+                }
+            } catch(e) {
+                token = null; localStorage.removeItem('tf_token');
+            }
+        }
 
-    if (urlToken) {
-        localStorage.setItem('tf_token', urlToken);
-        token = urlToken;
-        window.history.replaceState({}, document.title, "/");
-        showToast("Успешный вход через VK!");
-    } else if (urlError) {
-        window.history.replaceState({}, document.title, "/");
-        showToast("Ошибка авторизации VK", "error");
-    }
+        // ПЕРЕХВАТ ТОКЕНА ПОСЛЕ ВОЗВРАТА ИЗ ВК
+        window.onload = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlToken = urlParams.get('token');
+            const urlError = urlParams.get('error');
 
-    await checkAuth(); // ЖДЕМ, пока не завершится проверка авторизации
-    initSellForm(); 
-    showPage('market'); // И только потом показываем страницу
-};
+            if (urlToken) {
+                localStorage.setItem('tf_token', urlToken);
+                token = urlToken;
+                window.history.replaceState({}, document.title, "/");
+                showToast("Успешный вход через VK!");
+            } else if (urlError) {
+                window.history.replaceState({}, document.title, "/");
+                showToast("Ошибка авторизации VK", "error");
+            }
+
+            await checkAuth(); 
+            initSellForm(); 
+            showPage('market'); 
+        };
 
         function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
         function closeAuth() { document.getElementById('auth-modal').classList.add('hidden'); }
-        
         function logout() { token = null; localStorage.removeItem('tf_token'); location.reload(); }
         
-        function updateProfile(data) {
-            document.getElementById('auth-section').classList.add('hidden');
-            let profileSection = document.getElementById('profile-section');
-            profileSection.classList.remove('hidden');
-            
-            document.getElementById('ui-username').innerText = data.username;
-            document.getElementById('ui-balance').innerText = data.balance.toLocaleString('ru-RU');
-            
-            // Если у юзера есть аватарка из ВК, ставим её вместо стандартной иконки
-            if(data.avatar_url) {
-                let avatarBox = profileSection.querySelector('.w-10.h-10');
-                avatarBox.innerHTML = `<img src="${data.avatar_url}" class="w-full h-full rounded-full object-cover shadow-lg">`;
-            }
-        }
     </script>
 </body>
 </html>

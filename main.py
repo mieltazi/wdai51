@@ -18,7 +18,7 @@ from models import User, Product, Order, PrivateMessage, BlockedUser, Review
 SECRET_KEY = "tradeflow_super_secret"
 
 # ==========================================
-VK_CLIENT_ID = os.getenv("VK_CLIENT_ID", "51944173") # Берем из Vercel
+VK_CLIENT_ID = "54566173"
 VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET")
 VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback"
 # ==========================================

@@ -252,47 +252,26 @@
 
     </main>
 
-    <!-- МОДАЛКА ВХОДА ЧЕРЕЗ VK -->
-    <div id="auth-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
-        <div class="glass-panel border border-white/10 rounded-3xl p-10 max-w-sm w-full mx-4 relative animate-[fadeUp_0.3s_ease] text-center">
-            <button onclick="closeAuth()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class='bx bx-x text-2xl'></i></button>
-            
-            <div class="w-16 h-16 mx-auto bg-blue-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/30">
-                <i class='bx bxl-vk text-4xl text-white'></i>
-            </div>
-            
-            <h3 class="text-2xl font-bold text-white mb-2">Вход в TradeFlow</h3>
-            <p class="text-gray-400 text-sm mb-8">Для совершения покупок и продаж необходимо авторизоваться</p>
-
-            <!-- ВИДЖЕТ ВКОНТАКТЕ -->
-            <div class="flex justify-center w-full">
-              <script src="https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js"></script>
-              <script type="text/javascript">
-                if ('VKIDSDK' in window) {
-                  const VKID = window.VKIDSDK;
-
-                  VKID.Config.init({
-                    app: 54566173,
-                    redirectUrl: 'https://wdai51.vercel.app/api/auth/vk/callback',
-                    responseMode: VKID.ConfigResponseMode.Redirect,
-                    source: VKID.ConfigSource.LOWCODE,
-                    scope: '', 
-                  });
-
-                  const oneTap = new VKID.OneTap();
-
-                  oneTap.render({
-                    container: document.currentScript.parentElement,
-                    showAlternativeLogin: true
-                  });
-                }
-              </script>
-            </div>
-            <!-- КОНЕЦ ВИДЖЕТА ВКОНТАКТЕ -->
-            
-            <p class="text-xs text-gray-500 mt-6">Мы не получаем доступ к вашим сообщениям и паролям.</p>
+<!-- МОДАЛКА ВХОДА ЧЕРЕЗ VK (ИСПРАВЛЕНО) -->
+<div id="auth-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
+    <div class="glass-panel border border-white/10 rounded-3xl p-10 max-w-sm w-full mx-4 relative animate-[fadeUp_0.3s_ease] text-center">
+        <button onclick="closeAuth()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class='bx bx-x text-2xl'></i></button>
+        
+        <div class="w-16 h-16 mx-auto bg-blue-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/30">
+            <i class='bx bxl-vk text-4xl text-white'></i>
         </div>
+        
+        <h3 class="text-2xl font-bold text-white mb-2">Вход в TradeFlow</h3>
+        <p class="text-gray-400 text-sm mb-8">Для совершения покупок и продаж необходимо авторизоваться</p>
+
+        <!-- ЭТО СТАРАЯ КНОПКА, КОТОРАЯ ВЕДЕТ НА НАШ PYTHON-БЭКЕНД. ОНА НАМ И НУЖНА! -->
+        <a href="/api/auth/vk" class="w-full bg-[#0077FF] hover:bg-[#0066eb] text-white py-4 rounded-xl font-bold transition flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(0,119,255,0.3)]">
+            <i class='bx bxl-vk text-2xl'></i> Войти через VK ID
+        </a>
+        
+        <p class="text-xs text-gray-500 mt-6">Мы не получаем доступ к вашим сообщениям и паролям.</p>
     </div>
+</div>
 
     <!-- КОНТЕЙНЕР ДЛЯ ОШИБОК -->
     <div id="toast-container"></div>
@@ -586,28 +565,26 @@
             } catch(e) {}
         }
 
-        // ПЕРЕХВАТ ТОКЕНА ПОСЛЕ ВОЗВРАТА ИЗ ВК
-        window.onload = () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlToken = urlParams.get('token');
-            const urlError = urlParams.get('error');
+// ПЕРЕХВАТ ТОКЕНА И ПЕРВИЧНАЯ ЗАГРУЗКА
+window.onload = async () => { // Добавляем async, чтобы использовать await
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+    const urlError = urlParams.get('error');
 
-            if (urlToken) {
-                // Если ВК вернул нас с токеном - сохраняем его
-                localStorage.setItem('tf_token', urlToken);
-                token = urlToken;
-                // Очищаем адресную строку от токена, чтобы было красиво
-                window.history.replaceState({}, document.title, "/");
-                showToast("Успешный вход через VK!");
-            } else if (urlError) {
-                window.history.replaceState({}, document.title, "/");
-                showToast("Ошибка авторизации VK", "error");
-            }
+    if (urlToken) {
+        localStorage.setItem('tf_token', urlToken);
+        token = urlToken;
+        window.history.replaceState({}, document.title, "/");
+        showToast("Успешный вход через VK!");
+    } else if (urlError) {
+        window.history.replaceState({}, document.title, "/");
+        showToast("Ошибка авторизации VK", "error");
+    }
 
-            checkAuth(); 
-            initSellForm(); 
-            showPage('market'); 
-        };
+    await checkAuth(); // ЖДЕМ, пока не завершится проверка авторизации
+    initSellForm(); 
+    showPage('market'); // И только потом показываем страницу
+};
 
         function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
         function closeAuth() { document.getElementById('auth-modal').classList.add('hidden'); }

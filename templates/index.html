@@ -8,7 +8,7 @@
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Подключаем Swiper.js для слайдера -->
+    <!-- Swiper.js для красивых слайдеров -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
@@ -20,14 +20,14 @@
         
         .bg-mesh {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -2;
-            background: radial-gradient(circle at 20% 0%, rgba(99, 102, 241, 0.04), transparent 30%),
-                        radial-gradient(circle at 80% 100%, rgba(14, 165, 233, 0.04), transparent 30%);
+            background: radial-gradient(circle at 20% 0%, rgba(99, 102, 241, 0.05), transparent 40%),
+                        radial-gradient(circle at 80% 100%, rgba(14, 165, 233, 0.05), transparent 40%);
             animation: pulseBg 20s ease-in-out infinite alternate;
         }
         @keyframes pulseBg { 0% { transform: scale(1); } 100% { transform: scale(1.05); } }
 
-        .glass-panel { background: rgba(12, 12, 14, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.04); }
-        .glass-header { background: rgba(18, 18, 22, 0.6); backdrop-filter: blur(24px); }
+        .glass-panel { background: rgba(15, 15, 18, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .glass-header { background: rgba(12, 12, 14, 0.8); backdrop-filter: blur(24px); }
         
         .page-section { display: none; opacity: 0; }
         .page-section.active { display: block; animation: fadeUp 0.4s ease forwards; }
@@ -47,46 +47,58 @@
         .product-card { transition: all 0.3s; cursor: pointer; }
         .product-card:hover { transform: translateY(-5px); border-color: rgba(99,102,241,0.4); box-shadow: 0 10px 30px -10px rgba(99,102,241,0.2); }
 
+        /* Карточки категорий с картинками */
+        .category-card { position: relative; overflow: hidden; border-radius: 16px; aspect-ratio: 3/4; transition: transform 0.3s; cursor: pointer; border: 1px solid rgba(255,255,255,0.05); }
+        .category-card:hover { transform: translateY(-5px) scale(1.02); border-color: rgba(99,102,241,0.5); box-shadow: 0 10px 30px -10px rgba(99,102,241,0.3); }
+        .category-card img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
+        .category-card:hover img { transform: scale(1.1); }
+        .category-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 50%, transparent 100%); }
+        .category-text { position: absolute; bottom: 16px; left: 16px; right: 16px; }
+
+        /* Слайдер */
+        .swiper { border-radius: 20px; overflow: hidden; }
+        .swiper-pagination-bullet { background: #fff; opacity: 0.4; }
+        .swiper-pagination-bullet-active { background: #4f46e5; opacity: 1; }
+        .swiper-button-next, .swiper-button-prev { color: #fff; transform: scale(0.6); }
+
         #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
         @keyframes slideInRight { 0% { transform: translateX(120%); opacity: 0; } 80% { transform: translateX(-10px); opacity: 1; } 100% { transform: translateX(0); opacity: 1; } }
         @keyframes fadeOutRight { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(120%); opacity: 0; } }
         .toast-anim { animation: slideInRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: auto; }
         .toast-anim.leaving { animation: fadeOutRight 0.4s ease-in forwards; }
-        
-        /* Стили для слайдера */
-        .swiper-slide { border-radius: 16px; overflow: hidden; }
-        .swiper-pagination-bullet { background: #fff; opacity: 0.3; }
-        .swiper-pagination-bullet-active { background: #4f46e5; opacity: 1; }
-        .swiper-button-next, .swiper-button-prev { color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); transform: scale(0.6); }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
 
     <div class="bg-mesh"></div>
 
-    <header class="fixed top-6 left-1/2 -translate-x-1/2 w-[95%] max-w-5xl z-50 glass-header px-6 py-3 rounded-2xl flex justify-between items-center shadow-2xl border border-white/5">
-        <div class="flex items-center gap-2 cursor-pointer" onclick="showPage('market')">
-            <img src="/static/images/icon.png" alt="Logo" class="w-8 h-8" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1175/1175080.png'">
-            <h1 class="text-xl font-bold tracking-tight text-white hidden sm:block">Trade<span class="text-indigo-500">Flow</span></h1>
+    <!-- НАВИГАЦИЯ -->
+    <header class="fixed top-6 left-1/2 -translate-x-1/2 w-[95%] max-w-6xl z-50 glass-header px-6 py-3 rounded-2xl flex justify-between items-center shadow-2xl border border-white/5">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="showPage('market')">
+            <div class="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.4)]">
+                <i class='bx bx-store-alt text-2xl text-white'></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight text-white hidden sm:block">Trade<span class="text-indigo-400">Flow</span></h1>
         </div>
         
-        <nav class="hidden md:flex gap-1 font-medium text-sm">
-            <button onclick="showPage('market')" id="nav-market" class="nav-item active">Маркет</button>
-            <button onclick="showPage('sell')" id="nav-sell" class="nav-item">Продать</button>
-            <button onclick="showPage('purchases')" id="nav-purchases" class="nav-item">Покупки</button>
-            <button onclick="showPage('messages')" id="nav-messages" class="nav-item">Сообщения</button>
+        <nav class="hidden md:flex gap-2 font-medium text-sm">
+            <button onclick="showPage('market')" id="nav-market" class="nav-item active"><i class='bx bx-grid-alt mr-1'></i> Маркет</button>
+            <button onclick="showPage('sell')" id="nav-sell" class="nav-item"><i class='bx bx-plus-circle mr-1'></i> Продать</button>
+            <button onclick="showPage('purchases')" id="nav-purchases" class="nav-item"><i class='bx bx-shopping-bag mr-1'></i> Покупки</button>
+            <button onclick="showPage('messages')" id="nav-messages" class="nav-item"><i class='bx bx-message-square-dots mr-1'></i> Чат</button>
         </nav>
 
         <div id="auth-section">
-            <button onclick="openAuthModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg font-medium transition text-sm shadow-[0_0_15px_rgba(99,102,241,0.3)]">Войти</button>
+            <button onclick="openAuthModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-semibold transition text-sm shadow-[0_0_20px_rgba(99,102,241,0.3)]">Войти</button>
         </div>
+        
         <div id="profile-section" class="hidden flex items-center gap-4">
             <div class="text-right hidden sm:block cursor-pointer" onclick="openProfile(document.getElementById('ui-username').innerText)">
-                <p class="text-sm font-semibold text-white hover:text-indigo-400 transition" id="ui-username">User</p>
-                <p class="text-xs text-gray-400"><span id="ui-balance" class="text-green-400 font-medium">0</span> ₽</p>
+                <p class="text-sm font-bold text-white hover:text-indigo-400 transition" id="ui-username">User</p>
+                <p class="text-xs text-gray-400"><span id="ui-balance" class="text-green-400 font-bold">0</span> ₽</p>
             </div>
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold shadow-lg cursor-pointer hover:opacity-80 transition" onclick="logout()">
-                <i class='bx bx-log-out text-white'></i>
+            <div class="w-11 h-11 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg cursor-pointer hover:opacity-80 transition border-2 border-indigo-400/30" onclick="logout()" title="Выйти">
+                <i class='bx bx-log-out text-white text-lg'></i>
             </div>
         </div>
     </header>
@@ -97,93 +109,87 @@
         <section id="page-market" class="page-section active">
             
             <!-- СЛАЙДЕР С НОВОСТЯМИ/АКЦИЯМИ -->
-            <div class="swiper mySwiper mb-12 h-48 sm:h-64 shadow-2xl border border-white/5">
-                <div class="swiper-wrapper">
-                    <!-- Слайд 1 -->
-                    <div class="swiper-slide relative flex items-center justify-center cursor-pointer">
-                        <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover opacity-40">
-                        <div class="absolute inset-0 bg-gradient-to-r from-[#070709] via-transparent to-transparent"></div>
-                        <div class="relative z-10 text-left w-full px-12">
-                            <span class="bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded mb-3 inline-block">АКЦИЯ</span>
-                            <h2 class="text-3xl sm:text-4xl font-bold text-white mb-2">Весенняя распродажа!</h2>
-                            <p class="text-sm sm:text-lg text-gray-300">Скидки на аккаунты Dota 2 и CS2 до 50%</p>
-                        </div>
-                    </div>
-                    <!-- Слайд 2 -->
-                    <div class="swiper-slide relative flex items-center justify-center cursor-pointer">
-                        <img src="https://images.unsplash.com/photo-1614680376593-902f74cf0d41?q=80&w=1974&auto=format&fit=crop" class="absolute inset-0 w-full h-full object-cover opacity-40">
-                        <div class="absolute inset-0 bg-gradient-to-r from-purple-900/80 to-transparent"></div>
-                        <div class="relative z-10 text-left w-full px-12">
-                            <span class="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded mb-3 inline-block">НОВИНКА</span>
-                            <h2 class="text-3xl sm:text-4xl font-bold text-white mb-2">Пополнение ключей Minecraft</h2>
-                            <p class="text-sm sm:text-lg text-gray-300">Официальные ключи Java & Bedrock Edition уже в наличии</p>
-                        </div>
-                    </div>
+            <div class="swiper mySwiper mb-12 h-56 sm:h-72 shadow-2xl border border-white/5">
+                <div class="swiper-wrapper" id="slider-wrapper">
+                    <!-- Сюда JS подставит слайды -->
                 </div>
                 <div class="swiper-pagination"></div>
                 <div class="swiper-button-next"></div>
                 <div class="swiper-button-prev"></div>
             </div>
 
-            <!-- КОНТЕЙНЕР ДЛЯ КАТЕГОРИЙ (С ГЛОБАЛЬНЫМИ ГРУППАМИ) -->
-            <div id="main-categories-container" class="flex flex-col gap-10"></div>
+            <!-- КАТЕГОРИИ -->
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-3"><i class='bx bxs-category text-indigo-500'></i> Каталог игр и сервисов</h2>
+            <div id="main-categories-container" class="flex flex-col gap-10 mb-16"></div>
+
+            <!-- РАНДОМНЫЕ ОБЪЯВЛЕНИЯ -->
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-3"><i class='bx bxs-hot text-orange-500'></i> 🔥 Свежие предложения</h2>
+            <div id="random-products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+            
         </section>
 
         <!-- КАТЕГОРИЯ ИГРЫ -->
         <section id="page-category" class="page-section">
-            <div class="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
-                <button onclick="showPage('market')" class="text-gray-400 hover:text-white transition flex items-center gap-2 bg-white/5 px-4 py-2 rounded-lg w-fit"><i class='bx bx-arrow-back'></i> Назад</button>
-                <h2 class="text-3xl font-bold text-white" id="cat-title">Название</h2>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                <div class="flex items-center gap-4">
+                    <button onclick="showPage('market')" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white transition"><i class='bx bx-arrow-back text-xl'></i></button>
+                    <h2 class="text-3xl font-bold text-white" id="cat-title">Название</h2>
+                </div>
+                <input type="text" id="search-input" placeholder="Поиск по названию..." class="w-full sm:w-72 bg-[#111] border border-white/10 rounded-xl py-2.5 px-4 text-white outline-none focus:border-indigo-500 transition" oninput="debounceSearch()">
             </div>
-            <div class="flex flex-col gap-4 mb-8">
-                <input type="text" id="search-input" placeholder="Поиск товаров..." class="w-full max-w-md bg-[#111] border border-white/10 rounded-xl py-3 px-4 text-white outline-none focus:border-indigo-500" oninput="debounceSearch()">
-                <div class="flex flex-wrap gap-2" id="subcategory-filters"></div>
-            </div>
+            
+            <div class="flex flex-wrap gap-2 mb-8" id="subcategory-filters"></div>
             <div id="category-products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
         </section>
 
         <!-- СТРАНИЦА ТОВАРА -->
         <section id="page-product" class="page-section max-w-5xl mx-auto">
-            <button onclick="showPage('category')" class="text-gray-400 hover:text-white transition flex items-center gap-2 bg-white/5 px-4 py-2 rounded-lg w-fit mb-6"><i class='bx bx-arrow-back'></i> К списку товаров</button>
+            <button onclick="showPage('category')" class="text-gray-400 hover:text-white transition flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl w-fit mb-6"><i class='bx bx-arrow-back'></i> К списку товаров</button>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="md:col-span-2 glass-panel p-8 rounded-2xl border border-white/5">
-                    <div class="mb-2 text-xs font-bold tracking-wider text-indigo-400 uppercase" id="prod-category">Категория</div>
-                    <h2 class="text-3xl font-bold text-white mb-6" id="prod-title">Заголовок</h2>
+                <div class="md:col-span-2 glass-panel p-8 rounded-3xl border border-white/5 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
                     
-                    <div id="prod-warranty" class="hidden flex items-center gap-2 text-green-400 text-sm font-medium mb-6 bg-green-400/10 p-4 rounded-xl border border-green-400/20">
+                    <div class="mb-3 text-xs font-bold tracking-wider text-indigo-400 uppercase" id="prod-category">Категория</div>
+                    <h2 class="text-3xl font-bold text-white mb-6 leading-tight" id="prod-title">Заголовок</h2>
+                    
+                    <div id="prod-warranty" class="hidden flex items-center gap-3 text-green-400 text-sm font-medium mb-8 bg-green-400/10 p-4 rounded-2xl border border-green-400/20">
                         <i class='bx bx-shield-check text-2xl'></i> Продавец предоставляет гарантию возврата средств
                     </div>
 
-                    <h3 class="text-lg font-semibold text-white mb-3">Описание</h3>
-                    <div class="bg-white/5 rounded-xl p-5 text-gray-300 whitespace-pre-wrap leading-relaxed border border-white/5" id="prod-desc"></div>
+                    <h3 class="text-lg font-bold text-white mb-4">Описание товара</h3>
+                    <div class="bg-[#0a0a0c] rounded-2xl p-6 text-gray-300 whitespace-pre-wrap leading-relaxed border border-white/5" id="prod-desc"></div>
 
-                    <div class="flex items-center justify-between mt-8 pt-8 border-t border-white/10">
+                    <div class="flex items-center justify-between mt-10 pt-8 border-t border-white/10">
                         <div>
-                            <p class="text-sm text-gray-400">Стоимость</p>
-                            <p class="text-4xl font-bold text-white" id="prod-price">0 ₽</p>
+                            <p class="text-sm text-gray-400 mb-1">К оплате</p>
+                            <p class="text-4xl font-black text-white" id="prod-price">0 ₽</p>
                         </div>
-                        <button id="prod-buy-btn" class="bg-indigo-600 hover:bg-indigo-500 px-10 py-4 rounded-xl text-white font-bold text-lg transition shadow-[0_0_20px_rgba(99,102,241,0.4)]">Купить сейчас</button>
+                        <button id="prod-buy-btn" class="bg-indigo-600 hover:bg-indigo-500 px-10 py-4 rounded-2xl text-white font-bold text-lg transition shadow-[0_0_20px_rgba(99,102,241,0.4)] flex items-center gap-2">
+                            <i class='bx bx-cart-add text-2xl'></i> Купить
+                        </button>
                     </div>
                 </div>
 
                 <div class="flex flex-col gap-6">
-                    <div class="glass-panel p-6 rounded-2xl border border-white/5 text-center">
-                        <div class="w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 flex items-center justify-center text-3xl font-bold text-white mb-4 shadow-lg"><i class='bx bx-user'></i></div>
+                    <div class="glass-panel p-6 rounded-3xl border border-white/5 text-center relative overflow-hidden">
+                        <div class="w-24 h-24 mx-auto rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 flex items-center justify-center text-4xl font-bold text-white mb-4 shadow-xl border-4 border-[#121216]"><i class='bx bx-user'></i></div>
                         <h3 class="text-xl font-bold text-white mb-1" id="prod-seller-name">Seller</h3>
-                        <p class="text-sm text-green-400 mb-4 font-medium">В сети</p>
-                        <button onclick="openProfile(document.getElementById('prod-seller-name').innerText)" class="w-full bg-white/5 hover:bg-white/10 text-white py-2 rounded-lg font-medium transition border border-white/10">Перейти в профиль</button>
+                        <p class="text-sm text-green-400 mb-6 font-medium flex items-center justify-center gap-1"><span class="w-2 h-2 rounded-full bg-green-400 inline-block animate-pulse"></span> В сети</p>
+                        <button onclick="openProfile(document.getElementById('prod-seller-name').innerText)" class="w-full bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-medium transition border border-white/10">Профиль продавца</button>
                     </div>
 
-                    <div class="glass-panel rounded-2xl border border-white/5 flex flex-col h-[400px]">
-                        <div class="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
-                            <h3 class="font-semibold text-white">Чат с продавцом</h3>
-                            <button onclick="blockUser(document.getElementById('prod-seller-name').innerText)" class="text-red-400 hover:text-red-300 text-sm font-medium" title="Заблокировать"><i class='bx bx-block text-lg'></i></button>
+                    <div class="glass-panel rounded-3xl border border-white/5 flex flex-col h-[450px]">
+                        <div class="p-5 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-3xl">
+                            <h3 class="font-bold text-white flex items-center gap-2"><i class='bx bx-message-rounded-dots text-indigo-400'></i> Чат с продавцом</h3>
+                            <button onclick="blockUser(document.getElementById('prod-seller-name').innerText)" class="text-gray-500 hover:text-red-400 transition" title="Заблокировать"><i class='bx bx-block text-xl'></i></button>
                         </div>
-                        <div id="private-chat-box" class="flex-1 p-4 overflow-y-auto flex flex-col gap-3"></div>
-                        <div class="p-3 border-t border-white/5 flex gap-2">
-                            <input type="text" id="private-chat-input" placeholder="Сообщение..." class="flex-1 bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" onkeypress="if(event.key === 'Enter') sendPrivateMessage()">
-                            <button onclick="sendPrivateMessage()" class="bg-indigo-600 px-4 rounded-lg text-white hover:bg-indigo-500 transition"><i class='bx bxs-send'></i></button>
+                        <div id="private-chat-box" class="flex-1 p-5 overflow-y-auto flex flex-col gap-4"></div>
+                        <div class="p-4 border-t border-white/5 bg-black/20 rounded-b-3xl">
+                            <div class="flex gap-2">
+                                <input type="text" id="private-chat-input" placeholder="Написать сообщение..." class="flex-1 bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 transition" onkeypress="if(event.key === 'Enter') sendPrivateMessage()">
+                                <button onclick="sendPrivateMessage()" class="bg-indigo-600 w-12 rounded-xl text-white hover:bg-indigo-500 transition flex items-center justify-center shadow-lg"><i class='bx bxs-send text-xl'></i></button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -192,127 +198,144 @@
 
         <!-- ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ -->
         <section id="page-profile" class="page-section max-w-5xl mx-auto">
-            <div class="glass-panel p-8 rounded-3xl border border-white/5 flex items-center gap-8 mb-8">
-                <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-4xl font-bold text-white shadow-xl"><i class='bx bx-user'></i></div>
-                <div>
-                    <h2 class="text-3xl font-bold text-white mb-2" id="profile-name">Username</h2>
-                    <p class="text-gray-400 mb-2">На TradeFlow с недавних пор</p>
-                    <a id="profile-tg" href="#" target="_blank" class="hidden text-indigo-400 hover:text-indigo-300 text-sm font-medium flex items-center gap-1"><i class='bx bxl-telegram'></i> Связь в Telegram</a>
+            <div class="glass-panel p-10 rounded-3xl border border-white/5 flex items-center gap-8 mb-10 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-indigo-600/20 to-purple-600/20"></div>
+                <div class="w-32 h-32 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-5xl font-bold text-white shadow-2xl border-4 border-[#121216] relative z-10"><i class='bx bx-user'></i></div>
+                <div class="relative z-10">
+                    <h2 class="text-4xl font-black text-white mb-2" id="profile-name">Username</h2>
+                    <p class="text-gray-400 mb-4 flex items-center gap-2"><i class='bx bx-time-five'></i> На TradeFlow с недавних пор</p>
+                    <a id="profile-tg" href="#" target="_blank" class="hidden w-fit bg-[#0088cc]/10 text-[#0088cc] hover:bg-[#0088cc]/20 border border-[#0088cc]/30 px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2"><i class='bx bxl-telegram text-lg'></i> Связь в Telegram</a>
                 </div>
             </div>
-            <h3 class="text-2xl font-bold text-white mb-6">Товары пользователя</h3>
-            <div id="profile-products" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></div>
+            <h3 class="text-2xl font-bold text-white mb-6 flex items-center gap-2"><i class='bx bx-package text-indigo-400'></i> Витрина продавца</h3>
+            <div id="profile-products" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
         </section>
 
         <!-- ПРОДАЖА -->
-        <section id="page-sell" class="page-section max-w-2xl mx-auto">
-            <h2 class="text-3xl font-bold text-white mb-6">Создать объявление</h2>
-            <div class="glass-panel rounded-2xl p-8 border border-white/5 shadow-xl">
-                <form id="sell-form" onsubmit="submitProduct(event)" class="flex flex-col gap-5">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <section id="page-sell" class="page-section max-w-3xl mx-auto">
+            <h2 class="text-3xl font-bold text-white mb-8 text-center">Создать объявление</h2>
+            <div class="glass-panel rounded-3xl p-8 sm:p-10 border border-white/5 shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+                <form id="sell-form" onsubmit="submitProduct(event)" class="flex flex-col gap-6 relative z-10">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-sm text-gray-400 mb-2">Игра / Сервис</label>
-                            <select id="sell-category" onchange="updateSellSubcategories()" class="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-white outline-none focus:border-indigo-500"></select>
+                            <label class="block text-sm font-medium text-gray-400 mb-2">Игра / Сервис</label>
+                            <select id="sell-category" onchange="updateSellSubcategories()" class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition"></select>
                         </div>
                         <div>
-                            <label class="block text-sm text-gray-400 mb-2">Тип товара</label>
-                            <select id="sell-subcategory" class="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-white outline-none focus:border-indigo-500"></select>
+                            <label class="block text-sm font-medium text-gray-400 mb-2">Тип товара</label>
+                            <select id="sell-subcategory" class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition"></select>
                         </div>
                     </div>
                     
                     <div>
-                        <label class="block text-sm text-gray-400 mb-2">Заголовок</label>
-                        <input type="text" id="sell-title" required class="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-white outline-none focus:border-indigo-500">
+                        <label class="block text-sm font-medium text-gray-400 mb-2">Привлекательный заголовок</label>
+                        <input type="text" id="sell-title" required placeholder="Например: Жирный аккаунт CS2, 5000 часов" class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition">
                     </div>
 
                     <div>
-                        <label class="block text-sm text-gray-400 mb-2">Подробное описание</label>
-                        <textarea id="sell-desc" required class="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-white outline-none focus:border-indigo-500 h-24 resize-none"></textarea>
+                        <label class="block text-sm font-medium text-gray-400 mb-2">Подробное описание</label>
+                        <textarea id="sell-desc" required placeholder="Опишите все преимущества вашего товара..." class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition h-32 resize-none"></textarea>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center bg-white/5 p-6 rounded-2xl border border-white/5">
                         <div>
-                            <label class="block text-sm text-gray-400 mb-2">Цена (RUB)</label>
-                            <input type="number" id="sell-price" required min="1" class="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-white outline-none focus:border-indigo-500">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Цена (RUB)</label>
+                            <div class="relative">
+                                <input type="number" id="sell-price" required min="1" class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 pl-10 text-white outline-none focus:border-indigo-500 font-bold text-lg">
+                                <i class='bx bx-ruble absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl'></i>
+                            </div>
                         </div>
                         
-                        <div class="mt-7 flex items-center">
+                        <div class="mt-6 md:mt-0 flex items-center justify-end">
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox" id="sell-warranty" class="sr-only peer">
-                                <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
-                                <span class="ml-3 text-sm font-medium text-white">Гарантия возврата</span>
+                                <div class="w-12 h-7 bg-black/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
+                                <span class="ml-3 text-sm font-bold text-white flex items-center gap-1"><i class='bx bx-shield-check text-green-400 text-lg'></i> Гарантия</span>
                             </label>
                         </div>
                     </div>
 
-                    <div class="mt-4 p-5 rounded-xl border border-dashed border-indigo-500/30 bg-indigo-500/5 relative">
-                        <div class="absolute -top-3 left-4 bg-[#0a0a0c] px-2 text-xs text-indigo-400 font-semibold"><i class='bx bxs-lock-alt'></i> Данные для покупателя</div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <input type="text" id="sell-login" required placeholder="Логин" class="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-white outline-none focus:border-indigo-500">
-                            <input type="text" id="sell-password" required placeholder="Пароль" class="w-full bg-[#111] border border-white/10 rounded-lg p-3 text-white outline-none focus:border-indigo-500">
+                    <div class="mt-2 p-6 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/10 relative">
+                        <div class="absolute -top-3 left-6 bg-[#15151a] px-3 py-0.5 rounded-full border border-indigo-500/30 text-xs text-indigo-300 font-bold flex items-center gap-1"><i class='bx bxs-lock-alt'></i> Секретные данные (только для покупателя)</div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                            <input type="text" id="sell-login" required placeholder="Логин (Steam/Epic/etc)" class="w-full bg-[#0a0a0c] border border-indigo-500/30 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500">
+                            <input type="text" id="sell-password" required placeholder="Пароль" class="w-full bg-[#0a0a0c] border border-indigo-500/30 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500">
                         </div>
                     </div>
 
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-lg transition mt-4">Опубликовать</button>
+                    <button type="submit" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-4 rounded-xl transition mt-4 shadow-lg shadow-indigo-500/30 text-lg">🚀 Опубликовать товар</button>
                 </form>
             </div>
         </section>
 
         <!-- СООБЩЕНИЯ -->
         <section id="page-messages" class="page-section max-w-4xl mx-auto">
-            <h2 class="text-3xl font-bold text-white mb-6">Мои диалоги</h2>
-            <div class="glass-panel p-8 rounded-2xl border border-white/5 text-center text-gray-400">
-                <i class='bx bx-message-square-dots text-5xl mb-4'></i>
-                <p>Здесь будут отображаться ваши диалоги с продавцами и покупателями.<br>Чтобы начать чат, перейдите на страницу нужного товара.</p>
+            <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-2"><i class='bx bx-message-square-dots text-indigo-500'></i> Мои диалоги</h2>
+            <div class="glass-panel p-16 rounded-3xl border border-white/5 text-center text-gray-400 shadow-xl">
+                <div class="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i class='bx bx-ghost text-5xl text-gray-500'></i>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">Здесь пока пусто</h3>
+                <p>Зайдите на страницу любого товара и напишите продавцу,<br>чтобы начать свой первый диалог.</p>
             </div>
         </section>
 
         <!-- ПОКУПКИ -->
-        <section id="page-purchases" class="page-section max-w-4xl mx-auto">
-            <h2 class="text-3xl font-bold text-white mb-6">Мои покупки</h2>
+        <section id="page-purchases" class="page-section max-w-5xl mx-auto">
+            <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-2"><i class='bx bx-shopping-bag text-indigo-500'></i> История покупок</h2>
             <div id="purchases-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
         </section>
 
     </main>
 
     <!-- МОДАЛКА ВХОДА ЧЕРЕЗ VK -->
-    <div id="auth-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
-        <div class="glass-panel border border-white/10 rounded-3xl p-10 max-w-sm w-full mx-4 relative animate-[fadeUp_0.3s_ease] text-center">
-            <button onclick="closeAuth()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class='bx bx-x text-2xl'></i></button>
+    <div id="auth-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity">
+        <div class="glass-panel border border-white/10 rounded-[2rem] p-10 max-w-sm w-full mx-4 relative animate-[fadeUp_0.3s_ease] text-center shadow-2xl">
+            <button onclick="closeAuth()" class="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition"><i class='bx bx-x text-xl'></i></button>
             
-            <div class="w-16 h-16 mx-auto bg-blue-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-500/30">
-                <i class='bx bxl-vk text-4xl text-white'></i>
+            <div class="w-20 h-20 mx-auto bg-[#0077FF] rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-[#0077FF]/40 border-2 border-white/10">
+                <i class='bx bxl-vk text-5xl text-white'></i>
             </div>
             
-            <h3 class="text-2xl font-bold text-white mb-2">Вход в TradeFlow</h3>
-            <p class="text-gray-400 text-sm mb-8">Для совершения покупок и продаж необходимо авторизоваться</p>
+            <h3 class="text-2xl font-black text-white mb-2">Вход в TradeFlow</h3>
+            <p class="text-gray-400 text-sm mb-8 leading-relaxed">Для безопасных покупок и продаж необходимо войти в систему</p>
 
-            <!-- ИСПРАВЛЕННЫЙ ВИДЖЕТ ВКОНТАКТЕ -->
-<div class="flex justify-center w-full">
-  <script src="https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js"></script>
-  <script type="text/javascript">
-    if ('VKIDSDK' in window) {
-      const VKID = window.VKIDSDK;
+            <!-- КОНТЕЙНЕР ДЛЯ КНОПКИ ВКОНТАКТЕ -->
+            <div id="vk-auth-container" class="flex justify-center w-full min-h-[44px] mb-6"></div>
+            
+            <script src="https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js"></script>
+            <script type="text/javascript">
+              if ('VKIDSDK' in window) {
+                const VKID = window.VKIDSDK;
 
-                  VKID.Config.init({
-                    redirectUrl: 'https://wdai51.vercel.app/api/auth/vk/callback',
-                    responseMode: VKID.ConfigResponseMode.Redirect,
-                    source: VKID.ConfigSource.LOWCODE,
-                    scope: '', 
-                  });
+                VKID.Config.init({
+                  // Парсим переменную из Python. Если её нет - ставим 0, чтобы JS не ломался.
+                  app: parseInt('{{ vk_client_id }}') || 0, 
+                  redirectUrl: 'https://wdai51.vercel.app/api/auth/vk/callback',
+                  responseMode: VKID.ConfigResponseMode.Redirect,
+                  source: VKID.ConfigSource.LOWCODE,
+                  scope: '', 
+                });
 
-                  const oneTap = new VKID.OneTap();
+                const oneTap = new VKID.OneTap();
 
-                  oneTap.render({
-                    container: document.currentScript.parentElement,
-                    showAlternativeLogin: true
-                  });
+                // Жестко привязываем к нашему div по ID
+                const container = document.getElementById('vk-auth-container');
+                if (container) {
+                    oneTap.render({
+                        container: container,
+                        showAlternativeLogin: true
+                    });
                 }
-              </script>
-            </div>
-            <!-- КОНЕЦ ВИДЖЕТА ВКОНТАКТЕ -->
+              }
+            </script>
+            <!-- КОНЕЦ КНОПКИ -->
             
-            <p class="text-xs text-gray-500 mt-6">Мы не получаем доступ к вашим сообщениям и паролям.</p>
+            <div class="mt-6 pt-6 border-t border-white/5">
+                <p class="text-[11px] text-gray-500 uppercase tracking-widest font-bold flex items-center justify-center gap-1"><i class='bx bx-check-shield text-lg'></i> Безопасный вход</p>
+                <p class="text-xs text-gray-500 mt-1">Мы не получаем доступ к вашим паролям.</p>
+            </div>
         </div>
     </div>
 
@@ -320,16 +343,42 @@
     <div id="toast-container"></div>
 
     <script>
-        // --- ДОБАВИЛИ РОДИТЕЛЬСКУЮ КАТЕГОРИЮ (parent) ДЛЯ КАЖДОЙ ИГРЫ ---
+        // --- ДАННЫЕ ДЛЯ СЛАЙДЕРА (Легко менять!) ---
+        const SLIDES =[
+            { 
+                badge: "АКЦИЯ", color: "bg-indigo-600", 
+                title: "Весенняя распродажа! 🌸", 
+                text: "Скидки на аккаунты Dota 2 и CS2 до 50%", 
+                image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop" 
+            },
+            { 
+                badge: "НОВИНКА", color: "bg-green-500", 
+                title: "Ключи Minecraft ⛏️", 
+                text: "Официальные ключи Java & Bedrock Edition уже в наличии", 
+                image: "https://images.unsplash.com/photo-1600189083288-5a82643a6814?q=80&w=1974&auto=format&fit=crop" 
+            },
+            { 
+                badge: "ТОП ПРОДАЖ", color: "bg-orange-500", 
+                title: "Genshin Impact ✨", 
+                text: "Безопасный фарм примогемов и прокачка бездны", 
+                image: "https://images.unsplash.com/photo-1633511116664-ce88b9075e74?q=80&w=1974&auto=format&fit=crop" 
+            }
+        ];
+
+        // --- ДАННЫЕ ИГР (С КАРТИНКАМИ) ---
         const CATEGORIES = {
-            "CS2": { parent: "Компьютерные игры", icon: "bx-target-lock", color: "from-orange-500 to-red-600", subs:["Все", "Прайм-статус", "Скины", "Буст звания", "Аккаунты"] },
-            "Dota 2": { parent: "Компьютерные игры", icon: "bxl-steam", color: "from-red-600 to-red-900", subs:["Все", "MMR Буст", "Аккаунты", "Предметы"] },
-            "Valorant": { parent: "Компьютерные игры", icon: "bx-crosshair", color: "from-red-400 to-red-600", subs:["Все", "Ранговые игры", "Аккаунты", "Points"] },
-            "Genshin Impact": { parent: "Мобильные игры", icon: "bx-star", color: "from-blue-400 to-indigo-500", subs:["Все", "Кристаллы", "Аккаунты", "Фарм"] },
-            "Minecraft": { parent: "Компьютерные игры", icon: "bx-cube", color: "from-green-500 to-green-700", subs:["Все", "Лицензии", "Донат"] },
-            "Telegram": { parent: "Программы и сервисы", icon: "bxl-telegram", color: "from-blue-400 to-blue-600", subs:["Все", "Premium", "Номера", "Каналы"] },
-            "Discord": { parent: "Программы и сервисы", icon: "bxl-discord", color: "from-indigo-400 to-indigo-600", subs:["Все", "Nitro", "Сервера"] },
-            "Другое": { parent: "Разное", icon: "bx-dots-horizontal-rounded", color: "from-gray-600 to-gray-800", subs:["Все", "Разное"] }
+            "CS2 🔫": { parent: "🎮 Компьютерные игры", image: "https://images.unsplash.com/photo-1626025114515-5e6e39276d43?q=80&w=600&auto=format&fit=crop", subs:["Все", "Скины", "Аккаунты", "Буст"] },
+            "Dota 2 🧙‍♂️": { parent: "🎮 Компьютерные игры", image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=600&auto=format&fit=crop", subs:["Все", "Предметы", "Аккаунты", "MMR Буст"] },
+            "Valorant 🎯": { parent: "🎮 Компьютерные игры", image: "https://images.unsplash.com/photo-1662516243888-2b8104ce8e45?q=80&w=600&auto=format&fit=crop", subs:["Все", "Points", "Аккаунты", "Ранк"] },
+            "Rust ☢️": { parent: "🎮 Компьютерные игры", image: "https://images.unsplash.com/photo-1605901309584-818e25960b8f?q=80&w=600&auto=format&fit=crop", subs:["Все", "Скины", "Аккаунты", "Ресурсы"] },
+            "GTA 5 🚗": { parent: "🎮 Компьютерные игры", image: "https://images.unsplash.com/photo-1605371924599-2d0365da1ae0?q=80&w=600&auto=format&fit=crop", subs:["Все", "Валюта", "Прокачка", "Аккаунты"] },
+            "Minecraft ⛏️": { parent: "🎮 Компьютерные игры", image: "https://images.unsplash.com/photo-1600189083288-5a82643a6814?q=80&w=600&auto=format&fit=crop", subs:["Все", "Лицензии", "Донат", "Плащи"] },
+            "Genshin Impact ✨": { parent: "📱 Мобильные игры", image: "https://images.unsplash.com/photo-1633511116664-ce88b9075e74?q=80&w=600&auto=format&fit=crop", subs:["Все", "Примогемы", "Аккаунты", "Фарм"] },
+            "Roblox 🧱": { parent: "🎮 Компьютерные игры", image: "https://images.unsplash.com/photo-1605371924599-2d0365da1ae0?q=80&w=600&auto=format&fit=crop", subs:["Все", "Robux", "Питомцы", "Аккаунты"] },
+            "Fortnite 🎈": { parent: "🎮 Компьютерные игры", image: "https://images.unsplash.com/photo-1589241062272-c0a000072dfa?q=80&w=600&auto=format&fit=crop", subs:["Все", "В-Баксы", "Скины", "Аккаунты"] },
+            "Telegram ✈️": { parent: "🛠️ Программы и сервисы", image: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=600&auto=format&fit=crop", subs:["Все", "Premium", "Номера", "Каналы"] },
+            "Discord 👾": { parent: "🛠️ Программы и сервисы", image: "https://images.unsplash.com/photo-1614680376573-3e4e1ef00725?q=80&w=600&auto=format&fit=crop", subs:["Все", "Nitro", "Бусты сервера"] },
+            "Другое 📦": { parent: "📦 Разное", image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=600&auto=format&fit=crop", subs:["Все", "Разное"] }
         };
 
         let currentCategory = 'All', currentSubcategory = 'Все', currentSearch = '';
@@ -352,25 +401,15 @@
         function showToast(msg, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            
             const isSuccess = type === 'success';
             const icon = isSuccess ? "<i class='bx bx-check-circle text-2xl text-green-400'></i>" : "<i class='bx bx-error-circle text-2xl text-red-400'></i>";
             const lineClass = isSuccess ? 'bg-green-500' : 'bg-red-500';
 
             toast.className = `toast-anim glass-panel p-4 rounded-xl flex items-center gap-3 shadow-2xl relative overflow-hidden w-80 border border-white/10`;
-            
-            toast.innerHTML = `
-                <div class="absolute left-0 top-0 bottom-0 w-1.5 ${lineClass}"></div>
-                ${icon}
-                <span class="text-sm font-medium text-white leading-tight">${msg}</span>
-            `;
+            toast.innerHTML = `<div class="absolute left-0 top-0 bottom-0 w-1.5 ${lineClass}"></div>${icon}<span class="text-sm font-medium text-white leading-tight">${msg}</span>`;
             
             container.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.classList.add('leaving');
-                setTimeout(() => toast.remove(), 400); 
-            }, 4000);
+            setTimeout(() => { toast.classList.add('leaving'); setTimeout(() => toast.remove(), 400); }, 4000);
         }
 
         function showPage(pageId) {
@@ -389,54 +428,96 @@
             
             clearInterval(chatInterval);
             if(pageId === 'market') {
+                renderSliders();
                 renderCategories();
-                // Инициализируем слайдер, если он еще не запущен
-                new Swiper(".mySwiper", {
-                    loop: true,
-                    autoplay: { delay: 4000, disableOnInteraction: false },
-                    pagination: { el: ".swiper-pagination", clickable: true },
-                    navigation: { nextEl: ".swiper-button-next", prevEl: ".swiper-button-prev" },
-                });
+                loadRandomProducts();
             }
             if(pageId === 'purchases') loadPurchases();
             if(pageId === 'product' && currentChatUser) { loadPrivateChat(); chatInterval = setInterval(loadPrivateChat, 3000); }
         }
 
-        // ОБНОВЛЕННАЯ ФУНКЦИЯ ДЛЯ ОТРИСОВКИ ГЛОБАЛЬНЫХ КАТЕГОРИЙ
+        // ОТРИСОВКА СЛАЙДЕРА
+        function renderSliders() {
+            const wrapper = document.getElementById('slider-wrapper');
+            if (wrapper.innerHTML.trim() !== '') return; // не перерисовываем, если уже есть
+            
+            SLIDES.forEach(s => {
+                wrapper.innerHTML += `
+                    <div class="swiper-slide relative flex items-center justify-center cursor-pointer group">
+                        <img src="${s.image}" class="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700">
+                        <div class="absolute inset-0 bg-gradient-to-r from-[#070709] via-gray-900/60 to-transparent"></div>
+                        <div class="relative z-10 text-left w-full px-8 md:px-16">
+                            <span class="${s.color} text-white text-[10px] font-bold px-2 py-1 rounded mb-3 inline-block uppercase tracking-wider">${s.badge}</span>
+                            <h2 class="text-2xl md:text-4xl font-bold text-white mb-2 drop-shadow-lg">${s.title}</h2>
+                            <p class="text-sm md:text-lg text-gray-300 max-w-lg drop-shadow-md">${s.text}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            new Swiper(".mySwiper", {
+                loop: true,
+                autoplay: { delay: 4000, disableOnInteraction: false },
+                pagination: { el: ".swiper-pagination", clickable: true },
+                navigation: { nextEl: ".swiper-button-next", prevEl: ".swiper-button-prev" },
+            });
+        }
+
+        // ОТРИСОВКА КАТЕГОРИЙ (С КАРТИНКАМИ)
         function renderCategories() {
             const container = document.getElementById('main-categories-container');
-            container.innerHTML = '';
+            if (container.innerHTML.trim() !== '') return;
 
-            // 1. Группируем игры по их родительским категориям
             const groupedCategories = {};
             for (const [gameName, data] of Object.entries(CATEGORIES)) {
-                if (!groupedCategories[data.parent]) {
-                    groupedCategories[data.parent] = {};
-                }
+                if (!groupedCategories[data.parent]) groupedCategories[data.parent] = {};
                 groupedCategories[data.parent][gameName] = data;
             }
 
-            // 2. Отрисовываем каждую группу
-            for (const [parentName, games] of Object.entries(groupedCategories)) {
-                // Создаем заголовок группы
+            for (const[parentName, games] of Object.entries(groupedCategories)) {
                 let html = `
-                <div class="mb-2">
-                    <h2 class="text-2xl font-bold text-white mb-4 pl-3 border-l-4 border-indigo-500">${parentName}</h2>
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <div class="mb-4">
+                    <h2 class="text-xl sm:text-2xl font-bold text-white mb-6 pl-4 border-l-4 border-indigo-500 tracking-tight">${parentName}</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
                 `;
-                
-                // Добавляем игры в эту группу
                 for (const [gameName, data] of Object.entries(games)) {
                     html += `
-                        <div onclick="openCategoryView('${gameName}')" class="glass-panel p-6 rounded-2xl cursor-pointer hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(99,102,241,0.2)] transition-all duration-300 flex flex-col items-center text-center gap-3">
-                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br ${data.color} flex items-center justify-center shadow-lg"><i class='bx ${data.icon} text-3xl text-white'></i></div>
-                            <h3 class="text-lg font-bold text-white">${gameName}</h3>
+                        <div onclick="openCategoryView('${gameName}')" class="category-card shadow-lg group">
+                            <img src="${data.image}" alt="${gameName}">
+                            <div class="category-overlay"></div>
+                            <div class="category-text text-white text-sm sm:text-base group-hover:text-indigo-300 transition-colors">${gameName}</div>
                         </div>`;
                 }
-                
-                html += `</div></div>`; // Закрываем grid и группу
+                html += `</div></div>`;
                 container.innerHTML += html;
             }
+        }
+
+        // ЗАГРУЗКА РАНДОМНЫХ ОБЪЯВЛЕНИЙ НА ГЛАВНУЮ
+        async function loadRandomProducts() {
+            try {
+                let products = await api('/api/products'); // Получаем все
+                products = products.sort(() => 0.5 - Math.random()).slice(0, 8); // Берем 8 случайных
+                
+                let grid = document.getElementById('random-products-grid');
+                grid.innerHTML = products.length ? '' : '<div class="col-span-full text-center py-6 text-gray-500">Пока нет объявлений</div>';
+                
+                products.forEach(p => {
+                    let wBadge = p.warranty ? `<div class="absolute top-3 right-3 bg-green-500/90 backdrop-blur text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 shadow-lg"><i class='bx bx-shield-check'></i> Гарантия</div>` : '';
+                    grid.innerHTML += `
+                        <div onclick='openProduct(${JSON.stringify(p).replace(/'/g, "&#39;")})' class="product-card glass-panel rounded-2xl p-5 relative h-52 flex flex-col justify-between overflow-hidden group">
+                            <div class="absolute inset-0 bg-gradient-to-b from-transparent to-indigo-900/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            ${wBadge}
+                            <div class="relative z-10">
+                                <span class="inline-block bg-white/10 text-indigo-300 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded mb-2">${p.subcategory}</span>
+                                <h3 class="text-base font-bold text-white leading-tight line-clamp-2">${p.title}</h3>
+                            </div>
+                            <div class="relative z-10 flex justify-between items-end">
+                                <p class="text-2xl font-black text-white">${p.price.toLocaleString()} ₽</p>
+                                <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0"><i class='bx bx-right-arrow-alt'></i></div>
+                            </div>
+                        </div>`;
+                });
+            } catch(e) {}
         }
 
         function openCategoryView(name) {
@@ -466,14 +547,21 @@
             let url = `/api/products?category=${encodeURIComponent(currentCategory)}&subcategory=${encodeURIComponent(currentSubcategory)}&search=${encodeURIComponent(currentSearch)}`;
             let products = await api(url);
             let grid = document.getElementById('category-products-grid');
-            grid.innerHTML = products.length ? '' : '<div class="col-span-full text-center py-10 text-gray-500">Товаров не найдено</div>';
+            grid.innerHTML = products.length ? '' : '<div class="col-span-full text-center py-10 text-gray-500">В этой категории пока нет товаров</div>';
             products.forEach(p => {
-                let wBadge = p.warranty ? `<div class="absolute top-3 right-3 bg-green-500/20 text-green-400 p-1.5 rounded-md"><i class='bx bx-shield-check'></i></div>` : '';
+                let wBadge = p.warranty ? `<div class="absolute top-3 right-3 bg-green-500/90 backdrop-blur text-white text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 shadow-lg"><i class='bx bx-shield-check'></i> Гарантия</div>` : '';
                 grid.innerHTML += `
-                    <div onclick='openProduct(${JSON.stringify(p).replace(/'/g, "&#39;")})' class="product-card glass-panel rounded-xl p-5 relative h-48 flex flex-col justify-between">
+                    <div onclick='openProduct(${JSON.stringify(p).replace(/'/g, "&#39;")})' class="product-card glass-panel rounded-2xl p-5 relative h-52 flex flex-col justify-between overflow-hidden group">
+                        <div class="absolute inset-0 bg-gradient-to-b from-transparent to-indigo-900/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         ${wBadge}
-                        <div><span class="text-xs font-semibold text-indigo-400">${p.subcategory}</span><h3 class="text-base font-bold text-white mt-1 line-clamp-2">${p.title}</h3></div>
-                        <p class="text-2xl font-bold text-white mt-4">${p.price.toLocaleString()} ₽</p>
+                        <div class="relative z-10">
+                            <span class="inline-block bg-white/10 text-indigo-300 text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded mb-2">${p.subcategory}</span>
+                            <h3 class="text-base font-bold text-white leading-tight line-clamp-2">${p.title}</h3>
+                        </div>
+                        <div class="relative z-10 flex justify-between items-end">
+                            <p class="text-2xl font-black text-white">${p.price.toLocaleString()} ₽</p>
+                            <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0"><i class='bx bx-right-arrow-alt'></i></div>
+                        </div>
                     </div>`;
             });
         }
@@ -512,7 +600,7 @@
                 let grid = document.getElementById('profile-products');
                 grid.innerHTML = data.products.length ? '' : '<p class="text-gray-500">Нет активных товаров</p>';
                 data.products.forEach(p => {
-                    grid.innerHTML += `<div onclick='openProduct(${JSON.stringify({...p, seller: username}).replace(/'/g, "&#39;")})' class="product-card glass-panel rounded-xl p-5 border border-white/5"><span class="text-xs text-indigo-400">${p.category}</span><h3 class="font-bold text-white mb-4">${p.title}</h3><p class="text-xl font-bold text-white">${p.price} ₽</p></div>`;
+                    grid.innerHTML += `<div onclick='openProduct(${JSON.stringify({...p, seller: username}).replace(/'/g, "&#39;")})' class="product-card glass-panel rounded-2xl p-5 border border-white/5"><span class="text-xs text-indigo-400 font-bold tracking-wider">${p.category}</span><h3 class="font-bold text-white mt-1 mb-4 leading-tight">${p.title}</h3><p class="text-2xl font-black text-white">${p.price} ₽</p></div>`;
                 });
                 showPage('profile');
             } catch(e) { showToast(e.message, 'error'); }
@@ -525,10 +613,10 @@
                 let box = document.getElementById('private-chat-box');
                 let isBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 20;
                 
-                box.innerHTML = msgs.length ? '' : '<p class="text-xs text-gray-500 text-center mt-4">Напишите продавцу, чтобы уточнить детали.</p>';
+                box.innerHTML = msgs.length ? '' : '<div class="h-full flex flex-col items-center justify-center text-gray-500"><i class="bx bx-chat text-4xl mb-2"></i><p class="text-sm text-center">Напишите продавцу,<br>чтобы уточнить детали.</p></div>';
                 msgs.forEach(m => {
                     let isMe = m.sender !== currentChatUser;
-                    box.innerHTML += `<div class="w-fit max-w-[85%] p-3 rounded-xl text-sm ${isMe ? 'bg-indigo-600 text-white self-end rounded-tr-none' : 'bg-white/10 text-gray-200 self-start rounded-tl-none'}">${m.text}</div>`;
+                    box.innerHTML += `<div class="w-fit max-w-[85%] p-3 rounded-2xl text-sm ${isMe ? 'bg-indigo-600 text-white self-end rounded-tr-sm' : 'bg-white/10 text-gray-200 self-start rounded-tl-sm'}">${m.text}</div>`;
                 });
                 if(isBottom) box.scrollTop = box.scrollHeight;
             } catch(e) {}
@@ -580,9 +668,9 @@
             try {
                 let purchases = await api('/api/purchases');
                 let grid = document.getElementById('purchases-grid');
-                grid.innerHTML = purchases.length ? '' : '<div class="text-gray-500">Вы еще ничего не купили.</div>';
+                grid.innerHTML = purchases.length ? '' : '<div class="col-span-full flex flex-col items-center py-12 text-gray-500"><i class="bx bx-shopping-bag text-5xl mb-3"></i><p>Вы еще ничего не купили.</p></div>';
                 purchases.forEach(p => {
-                    grid.innerHTML += `<div class="glass-panel p-6 rounded-xl border border-white/10"><div class="flex justify-between items-start mb-4"><h3 class="font-bold text-white">${p.title}</h3><span class="text-xs bg-white/10 px-2 py-1 rounded text-gray-300">${p.order_code}</span></div><div class="bg-[#0a0a0c] p-4 rounded-lg border border-indigo-500/30 text-indigo-300 font-mono text-sm">${p.data}</div></div>`;
+                    grid.innerHTML += `<div class="glass-panel p-6 rounded-2xl border border-white/10 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full blur-2xl -mr-10 -mt-10"></div><div class="flex justify-between items-start mb-4 relative z-10"><h3 class="font-bold text-white text-lg leading-tight pr-4">${p.title}</h3><span class="text-[10px] font-mono bg-white/10 px-2 py-1 rounded text-gray-300 whitespace-nowrap">${p.order_code}</span></div><div class="bg-[#050507] p-4 rounded-xl border border-indigo-500/20 text-indigo-300 font-mono text-sm relative z-10">${p.data}</div></div>`;
                 });
             } catch(e) {}
         }
@@ -597,14 +685,13 @@
                 document.getElementById('ui-username').innerText = user.username;
                 document.getElementById('ui-balance').innerText = user.balance.toLocaleString('ru-RU');
                 if(user.avatar_url) {
-                    profileSection.querySelector('.w-10.h-10').innerHTML = `<img src="${user.avatar_url}" class="w-full h-full rounded-full object-cover shadow-lg">`;
+                    profileSection.querySelector('.w-11.h-11').innerHTML = `<img src="${user.avatar_url}" class="w-full h-full rounded-full object-cover">`;
                 }
             } catch(e) {
                 token = null; localStorage.removeItem('tf_token');
             }
         }
 
-        // ПЕРЕХВАТ ТОКЕНА ПОСЛЕ ВОЗВРАТА ИЗ ВК
         window.onload = async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const urlToken = urlParams.get('token');

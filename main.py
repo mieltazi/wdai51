@@ -5,7 +5,7 @@ import httpx
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Request, HTTPException, Header
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -17,14 +17,15 @@ from models import User, Product, Order, PrivateMessage, BlockedUser, Review
 
 SECRET_KEY = "tradeflow_super_secret"
 
-# ==========================================
-VK_CLIENT_ID = "54566173"
+# --- КЛЮЧИ БЕРУТСЯ ИЗ VERCEL ---
+VK_CLIENT_ID = os.getenv("VK_CLIENT_ID")
 VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET")
 VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback"
-# ==========================================
+# --------------------------------
 
+# --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL (ВАЖНО!) ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+# -------------------------------------------
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -34,6 +35,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 async def get_current_user(authorization: str = Header(None), db: AsyncSession = Depends(get_db)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -48,12 +50,24 @@ async def get_current_user(authorization: str = Header(None), db: AsyncSession =
     except:
         raise HTTPException(status_code=401, detail="Недействительный токен")
 
+@app.get("/api/auth/vk")
+async def vk_login():
+    if not VK_CLIENT_ID:
+        return JSONResponse(status_code=500, content={"error": "VK_CLIENT_ID не настроен в Vercel!"})
+    url = f"https://oauth.vk.com/authorize?client_id={VK_CLIENT_ID}&display=page&redirect_uri={VK_REDIRECT_URI}&scope=email&response_type=code&v=5.131"
+    return RedirectResponse(url)
+
 @app.get("/api/auth/vk/callback")
 async def vk_callback(code: str, db: AsyncSession = Depends(get_db)):
+    if not VK_CLIENT_SECRET:
+        return JSONResponse(status_code=500, content={"error": "VK_CLIENT_SECRET не настроен в Vercel!"})
+
     async with httpx.AsyncClient() as client:
         token_res = await client.get(f"https://oauth.vk.com/access_token?client_id={VK_CLIENT_ID}&client_secret={VK_CLIENT_SECRET}&redirect_uri={VK_REDIRECT_URI}&code={code}")
         token_data = token_res.json()
-        if "error" in token_data: return RedirectResponse(url="/?error=vk_auth_failed")
+        
+        if "error" in token_data:
+            return JSONResponse(status_code=400, content={"VK_ERROR": token_data})
 
         access_token = token_data["access_token"]
         vk_user_id = token_data["user_id"]
@@ -64,12 +78,7 @@ async def vk_callback(code: str, db: AsyncSession = Depends(get_db)):
     user = res.scalar_one_or_none()
 
     if not user:
-        user = User(
-            vk_id=vk_user_id,
-            username=f"{user_info['first_name']} {user_info['last_name']}",
-            avatar_url=user_info.get('photo_100'),
-            balance=5000.0
-        )
+        user = User(vk_id=vk_user_id, username=f"{user_info['first_name']} {user_info['last_name']}", avatar_url=user_info.get('photo_100'), balance=5000.0)
         db.add(user)
         await db.commit()
         await db.refresh(user)
@@ -83,7 +92,7 @@ async def get_user(user: User = Depends(get_current_user)):
 
 @app.get("/")
 async def serve_frontend(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html", context={"vk_client_id": VK_CLIENT_ID})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.get("/api/products")
 async def get_products(category: str = "All", subcategory: str = "Все", search: str = "", db: AsyncSession = Depends(get_db)):

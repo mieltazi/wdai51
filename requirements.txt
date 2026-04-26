@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlalchemy
+asyncpg
+httpx
+PyJWT
+jinja2
+passlib
+argon2-cffi

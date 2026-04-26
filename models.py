@@ -5,9 +5,9 @@ from database import Base
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    vk_id = Column(Integer, unique=True, index=True) # Привязка к ВК
-    username = Column(String)                        # Имя и Фамилия из ВК
-    avatar_url = Column(String, nullable=True)       # Аватарка из ВК
+    vk_id = Column(Integer, unique=True, index=True)
+    username = Column(String)
+    avatar_url = Column(String, nullable=True)
     balance = Column(Float, default=0.0)
 
 class Product(Base):
@@ -18,6 +18,7 @@ class Product(Base):
     subcategory = Column(String, default="Разное")
     title = Column(String)
     description = Column(String, default="")
+    images = Column(String, default="") # Ссылки на фото через запятую
     has_warranty = Column(Boolean, default=False)
     price = Column(Float)
     account_data = Column(String)
@@ -33,6 +34,16 @@ class Order(Base):
     price = Column(Float)
     status = Column(String, default="paid")
 
+class Review(Base):
+    __tablename__ = "reviews"
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"))
+    buyer_id = Column(Integer, ForeignKey("users.id"))
+    seller_id = Column(Integer, ForeignKey("users.id"))
+    text = Column(String)
+    seller_reply = Column(String, nullable=True) # Ответ продавца
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
 class PrivateMessage(Base):
     __tablename__ = "private_messages"
     id = Column(Integer, primary_key=True, index=True)
@@ -46,11 +57,3 @@ class BlockedUser(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     blocked_id = Column(Integer, ForeignKey("users.id"))
-
-class GlobalMessage(Base):
-    __tablename__ = "global_chat"
-    id = Column(Integer, primary_key=True, index=True)
-    sender_id = Column(Integer, ForeignKey("users.id"))
-    sender_name = Column(String)
-    text = Column(String)
-    timestamp = Column(DateTime, default=datetime.utcnow)

@@ -13,23 +13,18 @@ from sqlalchemy import or_, and_
 from fastapi.staticfiles import StaticFiles
 
 from database import engine, Base, get_db
-from models import User, Product, Order, GlobalMessage, PrivateMessage, BlockedUser
+from models import User, Product, Order, PrivateMessage, BlockedUser, Review
 
 SECRET_KEY = "tradeflow_super_secret"
 
 # ==========================================
-# КЛЮЧИ ПРИЛОЖЕНИЯ ВКОНТАКТЕ
-VK_CLIENT_ID = os.getenv("VK_CLIENT_ID") 
+VK_CLIENT_ID = os.getenv("VK_CLIENT_ID", "51944173") # Берем из Vercel
 VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET")
 VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback"
 # ==========================================
 
-# --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL (ВАЖНО!) ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app = FastAPI()
-app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
-# -------------------------------------------
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,10 +32,8 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all, checkfirst=True)
     yield
 
-# Пересоздаем app с lifespan
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
-
 
 async def get_current_user(authorization: str = Header(None), db: AsyncSession = Depends(get_db)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -55,24 +48,15 @@ async def get_current_user(authorization: str = Header(None), db: AsyncSession =
     except:
         raise HTTPException(status_code=401, detail="Недействительный токен")
 
-# --- АВТОРИЗАЦИЯ ЧЕРЕЗ VK ID ---
-@app.get("/api/auth/vk")
-async def vk_login():
-    url = f"https://oauth.vk.com/authorize?client_id={VK_CLIENT_ID}&display=page&redirect_uri={VK_REDIRECT_URI}&scope=email&response_type=code&v=5.131"
-    return RedirectResponse(url)
-
 @app.get("/api/auth/vk/callback")
 async def vk_callback(code: str, db: AsyncSession = Depends(get_db)):
     async with httpx.AsyncClient() as client:
         token_res = await client.get(f"https://oauth.vk.com/access_token?client_id={VK_CLIENT_ID}&client_secret={VK_CLIENT_SECRET}&redirect_uri={VK_REDIRECT_URI}&code={code}")
         token_data = token_res.json()
-
-        if "error" in token_data:
-            return RedirectResponse(url="/?error=vk_auth_failed")
+        if "error" in token_data: return RedirectResponse(url="/?error=vk_auth_failed")
 
         access_token = token_data["access_token"]
         vk_user_id = token_data["user_id"]
-
         user_res = await client.get(f"https://api.vk.com/method/users.get?user_ids={vk_user_id}&fields=photo_100&access_token={access_token}&v=5.131")
         user_info = user_res.json()["response"][0]
 
@@ -91,22 +75,15 @@ async def vk_callback(code: str, db: AsyncSession = Depends(get_db)):
         await db.refresh(user)
 
     token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
-    
     return RedirectResponse(url=f"/?token={token}")
 
 @app.get("/api/user")
 async def get_user(user: User = Depends(get_current_user)):
-    return {"username": user.username, "balance": user.balance, "avatar_url": user.avatar_url}
+    return {"username": user.username, "balance": user.balance, "avatar_url": user.avatar_url, "id": user.id}
 
-# --- МАРКЕТПЛЕЙС ---
 @app.get("/")
 async def serve_frontend(request: Request):
-    # Передаем vk_client_id прямо в HTML шаблон!
-    return templates.TemplateResponse(
-        request=request, 
-        name="index.html", 
-        context={"vk_client_id": VK_CLIENT_ID}
-    )
+    return templates.TemplateResponse(request=request, name="index.html", context={"vk_client_id": VK_CLIENT_ID})
 
 @app.get("/api/products")
 async def get_products(category: str = "All", subcategory: str = "Все", search: str = "", db: AsyncSession = Depends(get_db)):
@@ -116,14 +93,15 @@ async def get_products(category: str = "All", subcategory: str = "Все", searc
     if search: query = query.filter(Product.title.ilike(f"%{search}%"))
 
     result = await db.execute(query)
-    return[{"id": p.id, "title": p.title, "description": p.description, "price": p.price, "category": p.category, "subcategory": p.subcategory, "warranty": p.has_warranty, "seller": u} for p, u in result]
+    return[{"id": p.id, "title": p.title, "description": p.description, "price": p.price, "category": p.category, "subcategory": p.subcategory, "warranty": p.has_warranty, "seller": u, "images": p.images.split(',') if p.images else []} for p, u in result]
 
 @app.post("/api/sell")
 async def add_product(data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    images_str = ",".join(data.get('images', [])[:8]) # Максимум 8 фото
     new_product = Product(
         seller_id=user.id, category=data['category'], subcategory=data.get('subcategory', 'Разное'),
         title=data['title'], description=data['description'], has_warranty=data['warranty'],
-        price=float(data['price']), account_data=data['data']
+        price=float(data['price']), account_data=data['data'], images=images_str
     )
     db.add(new_product)
     await db.commit()
@@ -135,7 +113,7 @@ async def buy_product(product_id: int, user: User = Depends(get_current_user), d
     product = prod_res.scalar_one_or_none()
     
     if not product or product.status != "active": raise HTTPException(400, "Товар недоступен")
-    if product.seller_id == user.id: raise HTTPException(400, "Вы не можете купить свой собственный товар!")
+    if product.seller_id == user.id: raise HTTPException(400, "Вы не можете купить свой собственный товар")
     if user.balance < product.price: raise HTTPException(400, "Недостаточно средств")
 
     user.balance -= product.price
@@ -155,7 +133,7 @@ async def buy_product(product_id: int, user: User = Depends(get_current_user), d
 async def get_purchases(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     query = select(Order, Product).join(Product, Order.product_id == Product.id).filter(Order.buyer_id == user.id)
     result = await db.execute(query)
-    return[{"order_code": o.order_code, "title": p.title, "price": o.price, "data": p.account_data} for o, p in result]
+    return[{"order_code": o.order_code, "title": p.title, "price": o.price, "data": p.account_data, "product_id": p.id, "seller_id": p.seller_id} for o, p in result]
 
 @app.get("/api/users/{username}")
 async def get_user_profile(username: str, db: AsyncSession = Depends(get_db)):
@@ -165,12 +143,49 @@ async def get_user_profile(username: str, db: AsyncSession = Depends(get_db)):
     
     prod_res = await db.execute(select(Product).filter_by(seller_id=u.id, status="active"))
     products = prod_res.scalars().all()
+
+    # Загружаем отзывы о продавце
+    rev_res = await db.execute(select(Review, User.username).join(User, Review.buyer_id == User.id).filter(Review.seller_id == u.id))
+    reviews =[{"id": r.id, "buyer": buyer_name, "text": r.text, "reply": r.seller_reply, "date": r.timestamp.strftime("%d.%m.%Y")} for r, buyer_name in rev_res]
     
     return {
-        "username": u.username, "avatar_url": u.avatar_url,
-        "products":[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "warranty": p.has_warranty} for p in products]
+        "username": u.username, "avatar_url": u.avatar_url, "id": u.id,
+        "products":[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "images": p.images.split(',') if p.images else []} for p in products],
+        "reviews": reviews
     }
 
+# --- ОТЗЫВЫ ---
+@app.post("/api/reviews")
+async def post_review(data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # Проверяем, существует ли уже отзыв от этого покупателя на этот товар
+    rev_res = await db.execute(select(Review).filter_by(buyer_id=user.id, product_id=data['product_id']))
+    review = rev_res.scalar_one_or_none()
+
+    if review:
+        review.text = data['text'] # Обновляем текст (ответ продавца не слетает!)
+        action = "изменил"
+    else:
+        review = Review(product_id=data['product_id'], buyer_id=user.id, seller_id=data['seller_id'], text=data['text'])
+        db.add(review)
+        action = "оставил"
+
+    # Отправляем системное сообщение в чат
+    sys_msg = PrivateMessage(sender_id=user.id, receiver_id=data['seller_id'], text=f"📢 Покупатель {action} отзыв: «{data['text']}»")
+    db.add(sys_msg)
+    await db.commit()
+    return {"status": "success"}
+
+@app.post("/api/reviews/{review_id}/reply")
+async def reply_review(review_id: int, data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    res = await db.execute(select(Review).filter_by(id=review_id, seller_id=user.id))
+    review = res.scalar_one_or_none()
+    if not review: raise HTTPException(403, "Отзыв не найден или вы не продавец")
+    
+    review.seller_reply = data['reply']
+    await db.commit()
+    return {"status": "success"}
+
+# --- ЧАТ ---
 @app.get("/api/messages/{username}")
 async def get_private_chat(username: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     target_res = await db.execute(select(User).filter_by(username=username))
@@ -178,10 +193,8 @@ async def get_private_chat(username: str, user: User = Depends(get_current_user)
     if not target: raise HTTPException(404)
 
     query = select(PrivateMessage).filter(
-        or_(
-            and_(PrivateMessage.sender_id == user.id, PrivateMessage.receiver_id == target.id),
-            and_(PrivateMessage.sender_id == target.id, PrivateMessage.receiver_id == user.id)
-        )
+        or_(and_(PrivateMessage.sender_id == user.id, PrivateMessage.receiver_id == target.id),
+            and_(PrivateMessage.sender_id == target.id, PrivateMessage.receiver_id == user.id))
     ).order_by(PrivateMessage.timestamp)
     
     msgs = await db.execute(query)
@@ -191,23 +204,9 @@ async def get_private_chat(username: str, user: User = Depends(get_current_user)
 async def send_private_message(username: str, data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     target_res = await db.execute(select(User).filter_by(username=username))
     target = target_res.scalar_one_or_none()
-    if not target: raise HTTPException(404, "Пользователь не найден")
-
-    block_check = await db.execute(select(BlockedUser).filter_by(user_id=target.id, blocked_id=user.id))
-    if block_check.scalar_one_or_none(): raise HTTPException(403, "Этот пользователь заблокировал вас")
+    if not target: raise HTTPException(404)
 
     msg = PrivateMessage(sender_id=user.id, receiver_id=target.id, text=data['text'])
     db.add(msg)
     await db.commit()
     return {"status": "ok"}
-
-@app.post("/api/users/{username}/block")
-async def block_user(username: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    target_res = await db.execute(select(User).filter_by(username=username))
-    target = target_res.scalar_one_or_none()
-    if not target: raise HTTPException(404)
-    
-    block = BlockedUser(user_id=user.id, blocked_id=target.id)
-    db.add(block)
-    await db.commit()
-    return {"status": "blocked"}

@@ -1,4 +1,4 @@
-import asyncio
+import os
 import uuid
 import jwt
 import httpx
@@ -21,10 +21,13 @@ SECRET_KEY = "tradeflow_super_secret"
 # КЛЮЧИ ПРИЛОЖЕНИЯ ВКОНТАКТЕ (Смотри инструкцию ниже)
 VK_CLIENT_ID = "ТВОЙ_АЙДИ_ПРИЛОЖЕНИЯ" 
 VK_CLIENT_SECRET = "ТВОЙ_СЕКРЕТНЫЙ_КЛЮЧ"
-VK_REDIRECT_URI = "http://localhost:8000/api/auth/vk/callback"
+VK_REDIRECT_URI = "http://localhost:8000/api/auth/vk/callback" # ЭТУ ССЫЛКУ МЫ ЗАМЕНИМ НА VERCEL
 # ==========================================
 
-templates = Jinja2Templates(directory="templates")
+# --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+# ------------------------------------
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,7 +36,10 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# --- ПОДКЛЮЧАЕМ ПАПКУ STATIC ДЛЯ VERCEL ---
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+# -------------------------------------------
 
 async def get_current_user(authorization: str = Header(None), db: AsyncSession = Depends(get_db)):
     if not authorization or not authorization.startswith("Bearer "):

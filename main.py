@@ -17,7 +17,6 @@ from database import engine, Base, get_db
 from models import User, Product, Order, PrivateMessage, BlockedUser, Review
 
 SECRET_KEY = "tradeflow_super_secret"
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @asynccontextmanager
@@ -43,13 +42,14 @@ async def get_current_user(authorization: str = Header(None), db: AsyncSession =
     except:
         raise HTTPException(status_code=401, detail="Недействительный токен")
 
-# --- НОВАЯ, ИДЕАЛЬНАЯ АВТОРИЗАЦИЯ VK ID ---
+
+# --- НОВАЯ СВЯЗКА С ВИДЖЕТОМ ВК ---
 class VKTokenData(BaseModel):
     access_token: str
 
 @app.post("/api/auth/vk/token")
 async def vk_token_auth(data: VKTokenData, db: AsyncSession = Depends(get_db)):
-    # 1. Получаем данные пользователя из ВК по токену, который дал виджет
+    # Виджет ВК сам добыл токен! Мы просто по нему получаем данные юзера
     async with httpx.AsyncClient() as client:
         user_res = await client.get(f"https://api.vk.com/method/users.get?fields=photo_100&access_token={data.access_token}&v=5.131")
         vk_response = user_res.json()
@@ -60,7 +60,7 @@ async def vk_token_auth(data: VKTokenData, db: AsyncSession = Depends(get_db)):
         user_info = vk_response["response"][0]
         vk_user_id = user_info["id"]
 
-    # 2. Ищем или создаем пользователя в нашей базе
+    # Ищем или создаем пользователя в БД
     res = await db.execute(select(User).filter_by(vk_id=vk_user_id))
     user = res.scalar_one_or_none()
 
@@ -75,7 +75,7 @@ async def vk_token_auth(data: VKTokenData, db: AsyncSession = Depends(get_db)):
         await db.commit()
         await db.refresh(user)
 
-    # 3. Создаем наш собственный токен и отдаем фронтенду
+    # Создаем наш токен для сайта
     token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
     return {"token": token}
 
@@ -96,11 +96,12 @@ async def get_products(category: str = "All", subcategory: str = "Все", searc
     if subcategory and subcategory != "Все": query = query.filter(Product.subcategory == subcategory)
     if search: query = query.filter(Product.title.ilike(f"%{search}%"))
     result = await db.execute(query)
+    # Возвращаем фото массивом
     return[{"id": p.id, "title": p.title, "description": p.description, "price": p.price, "category": p.category, "subcategory": p.subcategory, "warranty": p.has_warranty, "seller": u, "images": p.images.split(',') if p.images else []} for p, u in result]
 
 @app.post("/api/sell")
 async def add_product(data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    images_str = ",".join(data.get('images', [])[:8])
+    images_str = ",".join(data.get('images', [])[:8]) # Максимум 8 фото
     new_product = Product(
         seller_id=user.id, category=data['category'], subcategory=data.get('subcategory', 'Разное'),
         title=data['title'], description=data['description'], has_warranty=data['warranty'],
@@ -117,11 +118,13 @@ async def buy_product(product_id: int, user: User = Depends(get_current_user), d
     if not product or product.status != "active": raise HTTPException(400, "Товар недоступен")
     if product.seller_id == user.id: raise HTTPException(400, "Вы не можете купить свой собственный товар")
     if user.balance < product.price: raise HTTPException(400, "Недостаточно средств")
+    
     user.balance -= product.price
     product.status = "sold"
     seller_res = await db.execute(select(User).filter_by(id=product.seller_id))
     seller = seller_res.scalar_one()
     seller.balance += product.price
+    
     order_code = "ORD-" + uuid.uuid4().hex[:8].upper()
     new_order = Order(order_code=order_code, buyer_id=user.id, seller_id=product.seller_id, product_id=product.id, price=product.price)
     db.add(new_order)
@@ -139,10 +142,13 @@ async def get_user_profile(username: str, db: AsyncSession = Depends(get_db)):
     res = await db.execute(select(User).filter_by(username=username))
     u = res.scalar_one_or_none()
     if not u: raise HTTPException(404, "Пользователь не найден")
+    
     prod_res = await db.execute(select(Product).filter_by(seller_id=u.id, status="active"))
     products = prod_res.scalars().all()
+    
     rev_res = await db.execute(select(Review, User.username).join(User, Review.buyer_id == User.id).filter(Review.seller_id == u.id))
     reviews =[{"id": r.id, "buyer": buyer_name, "text": r.text, "reply": r.seller_reply, "date": r.timestamp.strftime("%d.%m.%Y")} for r, buyer_name in rev_res]
+    
     return {
         "username": u.username, "avatar_url": u.avatar_url, "id": u.id,
         "products":[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "images": p.images.split(',') if p.images else []} for p in products],
@@ -155,9 +161,14 @@ async def post_review(data: dict, user: User = Depends(get_current_user), db: As
     review = rev_res.scalar_one_or_none()
     if review:
         review.text = data['text']
+        action = "изменил"
     else:
         review = Review(product_id=data['product_id'], buyer_id=user.id, seller_id=data['seller_id'], text=data['text'])
         db.add(review)
+        action = "оставил"
+
+    sys_msg = PrivateMessage(sender_id=user.id, receiver_id=data['seller_id'], text=f"📢 Покупатель {action} отзыв: «{data['text']}»")
+    db.add(sys_msg)
     await db.commit()
     return {"status": "success"}
 

@@ -63,24 +63,9 @@ async def vk_callback(code: str, device_id: str = None, db: AsyncSession = Depen
         return JSONResponse(status_code=500, content={"error": "VK_CLIENT_SECRET не настроен в Vercel!"})
 
     async with httpx.AsyncClient() as client:
-        # 1. Попытка через новый API VK ID (как указано в документации One Tap)
-        data = {
-            "grant_type": "authorization_code",
-            "client_id": VK_CLIENT_ID,
-            "client_secret": VK_CLIENT_SECRET,
-            "redirect_uri": VK_REDIRECT_URI,
-            "code": code
-        }
-        if device_id:
-            data["device_id"] = device_id
-            
-        token_res = await client.post("https://id.vk.ru/oauth2/auth", data=data)
+        # Классический надежный метод обмена кода авторизации
+        token_res = await client.get(f"https://oauth.vk.com/access_token?client_id={VK_CLIENT_ID}&client_secret={VK_CLIENT_SECRET}&redirect_uri={VK_REDIRECT_URI}&code={code}")
         token_data = token_res.json()
-        
-        # 2. Фолбэк на классический OAuth, если id.vk.ru отклоняет запрос
-        if "error" in token_data:
-            token_res = await client.get(f"https://oauth.vk.com/access_token?client_id={VK_CLIENT_ID}&client_secret={VK_CLIENT_SECRET}&redirect_uri={VK_REDIRECT_URI}&code={code}")
-            token_data = token_res.json()
 
         if "error" in token_data:
             return JSONResponse(status_code=400, content={"VK_ERROR": token_data})
@@ -88,9 +73,11 @@ async def vk_callback(code: str, device_id: str = None, db: AsyncSession = Depen
         access_token = token_data["access_token"]
         vk_user_id = token_data["user_id"]
         
+        # Получаем данные пользователя
         user_res = await client.get(f"https://api.vk.com/method/users.get?user_ids={vk_user_id}&fields=photo_100&access_token={access_token}&v=5.131")
         user_info = user_res.json()["response"][0]
 
+    # Ищем пользователя в БД или создаем нового
     res = await db.execute(select(User).filter_by(vk_id=vk_user_id))
     user = res.scalar_one_or_none()
 
@@ -100,6 +87,7 @@ async def vk_callback(code: str, device_id: str = None, db: AsyncSession = Depen
         await db.commit()
         await db.refresh(user)
 
+    # Выдаем наш внутренний JWT токен
     token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
     return RedirectResponse(url=f"/?token={token}")
 

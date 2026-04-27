@@ -42,8 +42,7 @@ async def get_current_user(authorization: str = Header(None), db: AsyncSession =
     except:
         raise HTTPException(status_code=401, detail="Недействительный токен")
 
-
-# === НОВЫЙ ВХОД ЧЕРЕЗ ВИДЖЕТ ВК (Без Security Error) ===
+# --- НОВЫЙ, 100% РАБОЧИЙ МЕТОД АВТОРИЗАЦИИ VK ID ---
 class VKTokenData(BaseModel):
     access_token: str
 
@@ -56,7 +55,7 @@ async def vk_token_auth(data: VKTokenData, db: AsyncSession = Depends(get_db)):
         vk_response = user_res.json()
         
         if "error" in vk_response:
-            raise HTTPException(400, "Ошибка получения данных из ВК")
+            raise HTTPException(400, "Ошибка токена ВКонтакте")
             
         user_info = vk_response["response"][0]
         vk_user_id = user_info["id"]
@@ -97,6 +96,7 @@ async def get_products(category: str = "All", subcategory: str = "Все", searc
     if subcategory and subcategory != "Все": query = query.filter(Product.subcategory == subcategory)
     if search: query = query.filter(Product.title.ilike(f"%{search}%"))
     result = await db.execute(query)
+    # Возвращаем фото массивом
     return[{"id": p.id, "title": p.title, "description": p.description, "price": p.price, "category": p.category, "subcategory": p.subcategory, "warranty": p.has_warranty, "seller": u, "images": p.images.split(',') if p.images else []} for p, u in result]
 
 @app.post("/api/sell")
@@ -154,14 +154,13 @@ async def get_user_profile(username: str, db: AsyncSession = Depends(get_db)):
 async def post_review(data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     rev_res = await db.execute(select(Review).filter_by(buyer_id=user.id, product_id=data['product_id']))
     review = rev_res.scalar_one_or_none()
+    action = "оставил"
     if review:
         review.text = data['text']
         action = "изменил"
     else:
         review = Review(product_id=data['product_id'], buyer_id=user.id, seller_id=data['seller_id'], text=data['text'])
         db.add(review)
-        action = "оставил"
-
     sys_msg = PrivateMessage(sender_id=user.id, receiver_id=data['seller_id'], text=f"📢 Покупатель {action} отзыв: «{data['text']}»")
     db.add(sys_msg)
     await db.commit()
@@ -181,10 +180,7 @@ async def get_private_chat(username: str, user: User = Depends(get_current_user)
     target_res = await db.execute(select(User).filter_by(username=username))
     target = target_res.scalar_one_or_none()
     if not target: raise HTTPException(404)
-    query = select(PrivateMessage).filter(
-        or_(and_(PrivateMessage.sender_id == user.id, PrivateMessage.receiver_id == target.id),
-            and_(PrivateMessage.sender_id == target.id, PrivateMessage.receiver_id == user.id))
-    ).order_by(PrivateMessage.timestamp)
+    query = select(PrivateMessage).filter(or_(and_(PrivateMessage.sender_id == user.id, PrivateMessage.receiver_id == target.id), and_(PrivateMessage.sender_id == target.id, PrivateMessage.receiver_id == user.id))).order_by(PrivateMessage.timestamp)
     msgs = await db.execute(query)
     return[{"sender": user.username if m.sender_id == user.id else target.username, "text": m.text} for m in msgs.scalars().all()]
 

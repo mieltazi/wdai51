@@ -274,7 +274,14 @@
             <button onclick="closeAuth()" class="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition"><i class='bx bx-x text-xl'></i></button>
             <h3 class="text-2xl font-black text-white mb-2">Вход в TradeFlow</h3>
             <p class="text-gray-400 text-sm mb-6">Для безопасных покупок и продаж</p>
+            
             <div id="vk-auth-container" class="flex justify-center w-full min-h-[44px]"></div>
+            
+            <!-- ДОБАВЛЕНА КНОПКА FALLBACK ДЛЯ ИСКЛЮЧЕНИЯ JS ОШИБКИ И СТРАХОВКИ ОТ АДБЛОКА -->
+            <a href="/api/auth/vk" id="vk-fallback-btn" class="hidden mt-2 w-full bg-[#0077FF] hover:bg-[#0066CC] text-white py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg">
+                <i class='bx bxl-vk text-xl'></i> Войти через ВКонтакте
+            </a>
+
         </div>
     </div>
 
@@ -649,26 +656,20 @@
             } catch(e) { token = null; localStorage.removeItem('tf_token'); }
         }
 
-        // ==========================================
-        // МАГИЯ ОТКРЫТИЯ МОДАЛКИ (ФИНАЛЬНАЯ ВЕРСИЯ)
-        // ==========================================
         function openAuthModal() { 
             const modal = document.getElementById('auth-modal');
             modal.classList.remove('hidden'); 
-            // Мы вызываем скрипт ВК только ПОСЛЕ того, как окно стало видимым
-            // Это гарантирует, что виджету будет куда рисоваться.
             initVKWidget();
         }
 
-        // ВЫНЕСЛИ В ОТДЕЛЬНУЮ ФУНКЦИЮ
         function initVKWidget() {
             const container = document.getElementById('vk-auth-container');
             const fallbackBtn = document.getElementById('vk-fallback-btn');
             
-            // Если скрипт ВК не загрузился (из-за ошибки сети или блокировщика)
+            // Если блокировщик рекламы заблочил скрипт ВК, включаем обычную кнопку
             if (!('VKIDSDK' in window)) {
-                container.style.display = 'none';
-                fallbackBtn.classList.remove('hidden');
+                if(container) container.style.display = 'none';
+                if(fallbackBtn) fallbackBtn.classList.remove('hidden');
                 return;
             }
 
@@ -682,16 +683,14 @@
 
             const oneTap = new VKID.OneTap();
 
-            // Прячем запасную кнопку, если виджет начал рисоваться
-            fallbackBtn.style.display = 'none';
-            container.style.display = 'flex';
+            if(fallbackBtn) fallbackBtn.style.display = 'none';
+            if(container) container.style.display = 'flex';
             
             oneTap.render({ container: container, showAlternativeLogin: true })
             .on(VKID.WidgetEvents.ERROR, function(error) {
                 console.error("VK Widget Error:", error);
-                // Если виджет не смог отобразиться, показываем запасную кнопку
-                container.style.display = 'none';
-                fallbackBtn.classList.remove('hidden');
+                if(container) container.style.display = 'none';
+                if(fallbackBtn) fallbackBtn.classList.remove('hidden');
                 showToast("Не удалось загрузить виджет ВК", "error");
             })
             .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
@@ -699,7 +698,6 @@
                 const deviceId = payload.device_id;
                 VKID.Auth.exchangeCode(code, deviceId)
                 .then(function(data) {
-                    // Виджет успешно отработал! Отправляем его токен на наш Python сервер
                     fetch('/api/auth/vk/token', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -709,7 +707,7 @@
                     .then(res => {
                         if(res.token) {
                             localStorage.setItem('tf_token', res.token);
-                            window.location.reload(); // Перезагружаем страницу, чтобы войти в аккаунт
+                            window.location.reload(); 
                         } else {
                             showToast(res.detail || "Ошибка на сервере", "error");
                         }

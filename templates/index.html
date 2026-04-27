@@ -310,36 +310,44 @@
             
 <!-- ОФИЦИАЛЬНЫЙ СКРИПТ ВКОНТАКТЕ -->
             <script src="https://unpkg.com/@vkid/sdk@latest/dist-sdk/umd/index.js"></script>
-<script type="text/javascript">
-  if ('VKIDSDK' in window) {
-    const VKID = window.VKIDSDK;
-    
-    VKID.Config.init({
-      app: 54566173, 
-      redirectUrl: 'https://wdai51.vercel.app/api/auth/vk/callback',
-      responseMode: VKID.ConfigResponseMode.Redirect // <-- Прямой редирект, никаких поп-апов
-    });
+            <script type="text/javascript">
+              if ('VKIDSDK' in window) {
+                const VKID = window.VKIDSDK;
 
-    const oneTap = new VKID.OneTap();
-    const container = document.getElementById('vk-auth-container');
-    const fallbackBtn = document.getElementById('vk-fallback-btn');
-    
-    if (container) {
-        oneTap.render({
-            container: container,
-            scheme: VKID.Scheme.DARK,
-            lang: VKID.Languages.RUS,
-            showAlternativeLogin: true
-        })
-        .on(VKID.WidgetEvents.ERROR, function(error) {
-            console.error("VK Error:", error);
-            container.style.display = 'none';
-            fallbackBtn.classList.remove('hidden');
-        });
-        // Обработчик LOGIN_SUCCESS больше не нужен, так как работает Redirect
-    }
-  }
-</script>
+                // Точные настройки из вашей консоли VK
+                VKID.Config.init({
+                  app: 54566173,
+                  redirectUrl: 'https://wdai51.vercel.app/api/auth/vk/callback',
+                  responseMode: VKID.ConfigResponseMode.Callback,
+                  source: VKID.ConfigSource.LOWCODE,
+                  scope: '',
+                });
+
+                const oneTap = new VKID.OneTap();
+                const container = document.getElementById('vk-auth-container');
+                const fallbackBtn = document.getElementById('vk-fallback-btn');
+
+                if (container) {
+                  oneTap.render({
+                    container: container,
+                    showAlternativeLogin: true,
+                    scheme: VKID.Scheme.DARK // Оставил темную тему, чтобы было красиво на сайте
+                  })
+                  .on(VKID.WidgetEvents.ERROR, function(error) {
+                    // Если браузер заблокировал всплывающее окно ВК, показываем синюю кнопку
+                    console.error("VK Error:", error);
+                    container.style.display = 'none';
+                    fallbackBtn.classList.remove('hidden');
+                  })
+                  .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
+                    // ВАЖНО: Вместо VKID.Auth.exchangeCode отправляем код на наш бэкенд!
+                    // Бэкенд сам свяжется с ВК, создаст аккаунт в базе и вернет JWT токен.
+                    const params = new URLSearchParams({ code: payload.code });
+                    window.location.href = `/api/auth/vk/callback?${params.toString()}`;
+                  });
+                }
+              }
+            </script>
             
             <div class="mt-6 pt-6 border-t border-white/5">
                 <p class="text-[11px] text-gray-500 uppercase tracking-widest font-bold flex items-center justify-center gap-1"><i class='bx bx-check-shield text-lg'></i> Безопасный вход</p>

@@ -17,13 +17,14 @@ from models import User, Product, Order, PrivateMessage, BlockedUser, Review
 
 SECRET_KEY = "tradeflow_super_secret"
 
-# --- КЛЮЧИ БЕРУТСЯ ИЗ VERCEL ---
-VK_CLIENT_ID = os.getenv("VK_CLIENT_ID")
-VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET")
+# --- ЖЕСТКО ПРОПИСАН НОВЫЙ ID ИЗ ВАШЕГО КОДА ---
+VK_CLIENT_ID = "54566173" 
+# Секретный ключ всё еще берется из Vercel (ОБЯЗАТЕЛЬНО обновите его там для нового приложения!)
+VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET") 
 VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback"
 # --------------------------------
 
-# --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL (ВАЖНО!) ---
+# --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # -------------------------------------------
 

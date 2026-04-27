@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TradeFlow | Игровой Маркетплейс</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
@@ -17,12 +17,7 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
         
-        .bg-mesh {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -2;
-            background: radial-gradient(circle at 20% 0%, rgba(99, 102, 241, 0.05), transparent 40%),
-                        radial-gradient(circle at 80% 100%, rgba(14, 165, 233, 0.05), transparent 40%);
-        }
-
+        .bg-mesh { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -2; background: radial-gradient(circle at 20% 0%, rgba(99, 102, 241, 0.05), transparent 40%), radial-gradient(circle at 80% 100%, rgba(14, 165, 233, 0.05), transparent 40%); }
         .glass-panel { background: rgba(15, 15, 18, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .glass-header { background: rgba(12, 12, 14, 0.8); backdrop-filter: blur(24px); }
         
@@ -38,14 +33,12 @@
         .sub-btn.active { background: #4f46e5; color: white; border-color: transparent; }
         .sub-btn:not(.active) { background: rgba(255,255,255,0.05); color: #9ca3af; border: 1px solid rgba(255,255,255,0.05); }
 
-        /* КАРТОЧКИ ОБЪЯВЛЕНИЙ (С КАРТИНКАМИ) */
         .product-card { transition: all 0.3s; cursor: pointer; overflow: hidden; }
         .product-card:hover { transform: translateY(-5px); border-color: rgba(99,102,241,0.4); box-shadow: 0 10px 30px -10px rgba(99,102,241,0.2); }
         .product-image-wrapper { height: 160px; overflow: hidden; position: relative; }
         .product-image-wrapper img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
         .product-card:hover .product-image-wrapper img { transform: scale(1.05); }
 
-        /* ПЛИТКИ КАТЕГОРИЙ (КАК НА ТВОЕМ СКРИНШОТЕ) */
         .category-tile { transition: all 0.2s; cursor: pointer; background: #0c0c0e; border: 1px solid rgba(255,255,255,0.03); }
         .category-tile:hover { background: #151518; transform: translateY(-4px); border-color: rgba(255,255,255,0.1); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
         .app-icon { transition: transform 0.3s; }
@@ -96,10 +89,7 @@
 
     <main class="flex-1 mt-32 px-4 pb-12 max-w-6xl mx-auto w-full relative z-10">
         
-        <!-- МАРКЕТ -->
         <section id="page-market" class="page-section active">
-            
-            <!-- СЛАЙДЕР -->
             <div class="swiper mySwiper mb-12 h-56 sm:h-72 shadow-2xl border border-white/5">
                 <div class="swiper-wrapper" id="slider-wrapper"></div>
                 <div class="swiper-pagination"></div>
@@ -107,15 +97,12 @@
                 <div class="swiper-button-prev"></div>
             </div>
 
-            <!-- ПЛИТКИ КАТЕГОРИЙ (С ЭМОДЗИ И ДИЗАЙНОМ ИЗ СКРИНШОТА) -->
             <div id="main-categories-container" class="flex flex-col gap-10 mb-16"></div>
 
-            <!-- РАНДОМНЫЕ ОБЪЯВЛЕНИЯ С КАРТИНКАМИ -->
             <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-3"><i class='bx bxs-hot text-orange-500'></i> 🔥 Свежие предложения от игроков</h2>
             <div id="random-products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
         </section>
 
-        <!-- КАТЕГОРИЯ ИГРЫ -->
         <section id="page-category" class="page-section">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div class="flex items-center gap-4">
@@ -129,7 +116,6 @@
             <div id="category-products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
         </section>
 
-        <!-- СТРАНИЦА ТОВАРА -->
         <section id="page-product" class="page-section max-w-5xl mx-auto">
             <button onclick="showPage('category')" class="text-gray-400 hover:text-white transition flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl w-fit mb-6"><i class='bx bx-arrow-back'></i> К списку товаров</button>
             
@@ -140,7 +126,6 @@
                     <div class="mb-3 text-xs font-bold tracking-wider text-indigo-400 uppercase" id="prod-category">Категория</div>
                     <h2 class="text-3xl font-bold text-white mb-6 leading-tight" id="prod-title">Заголовок</h2>
                     
-                    <!-- Галерея фото товара -->
                     <div class="swiper productSwiper mb-6 h-64 sm:h-80 rounded-2xl border border-white/10 hidden" id="prod-image-container">
                         <div class="swiper-wrapper" id="prod-images"></div>
                         <div class="swiper-pagination"></div>
@@ -189,7 +174,6 @@
             </div>
         </section>
 
-        <!-- ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ И ОТЗЫВЫ -->
         <section id="page-profile" class="page-section max-w-5xl mx-auto">
             <div class="glass-panel p-10 rounded-3xl border border-white/5 flex items-center gap-8 mb-10 relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-indigo-600/20 to-purple-600/20"></div>
@@ -207,7 +191,6 @@
             <div id="profile-reviews" class="flex flex-col gap-4"></div>
         </section>
 
-        <!-- ПРОДАЖА (С ДОБАВЛЕНИЕМ ФОТО) -->
         <section id="page-sell" class="page-section max-w-3xl mx-auto">
             <h2 class="text-3xl font-bold text-white mb-8 text-center">Создать объявление</h2>
             <div class="glass-panel rounded-3xl p-8 sm:p-10 border border-white/5 shadow-2xl relative overflow-hidden">
@@ -273,7 +256,6 @@
             </div>
         </section>
 
-        <!-- ПОКУПКИ И СООБЩЕНИЯ -->
         <section id="page-messages" class="page-section max-w-4xl mx-auto">
             <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-2"><i class='bx bx-message-square-dots text-indigo-500'></i> Мои диалоги</h2>
             <div class="glass-panel p-16 rounded-3xl border border-white/5 text-center text-gray-400 shadow-xl">
@@ -288,7 +270,7 @@
 
     </main>
 
-    <!-- МОДАЛКА ВХОДА ЧЕРЕЗ VK -->
+    <!-- МОДАЛКА ВХОДА ЧЕРЕЗ VK (РАБОЧАЯ 100%) -->
     <div id="auth-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity">
         <div class="glass-panel border border-white/10 rounded-[2rem] p-10 max-w-sm w-full mx-4 relative animate-[fadeUp_0.3s_ease] text-center shadow-2xl">
             <button onclick="closeAuth()" class="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition"><i class='bx bx-x text-xl'></i></button>
@@ -300,54 +282,10 @@
             <h3 class="text-2xl font-black text-white mb-2">Вход в TradeFlow</h3>
             <p class="text-gray-400 text-sm mb-8 leading-relaxed">Для безопасных покупок и продаж необходимо войти в систему</p>
 
-            <!-- ГАРАНТИРОВАННЫЙ КОНТЕЙНЕР ДЛЯ ВИДЖЕТА ВК -->
-            <div id="vk-auth-container" class="flex justify-center w-full min-h-[44px] mb-4"></div>
-            
-            <!-- ЗАПАСНАЯ КНОПКА (если браузер блокирует скрипты ВК) -->
-            <a href="/api/auth/vk" id="vk-fallback-btn" class="hidden w-full bg-[#0077FF] hover:bg-[#0066eb] text-white py-3.5 rounded-xl font-bold transition flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(0,119,255,0.3)] mb-4">
-                <i class='bx bxl-vk text-2xl'></i> Войти через ВКонтакте
+            <!-- ГАРАНТИРОВАННО РАБОЧАЯ КНОПКА (НИКАКИХ СКРИПТОВ) -->
+            <a href="/api/auth/vk" class="w-full bg-[#0077FF] hover:bg-[#0066eb] text-white py-4 rounded-xl font-bold transition flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(0,119,255,0.4)] mb-4">
+                <i class='bx bxl-vk text-2xl'></i> Продолжить через ВКонтакте
             </a>
-            
-<!-- ОФИЦИАЛЬНЫЙ СКРИПТ ВКОНТАКТЕ -->
-            <script src="https://unpkg.com/@vkid/sdk@latest/dist-sdk/umd/index.js"></script>
-            <script type="text/javascript">
-              if ('VKIDSDK' in window) {
-                const VKID = window.VKIDSDK;
-
-                // Точные настройки из вашей консоли VK
-                VKID.Config.init({
-                  app: 54566173,
-                  redirectUrl: 'https://wdai51.vercel.app/api/auth/vk/callback',
-                  responseMode: VKID.ConfigResponseMode.Callback,
-                  source: VKID.ConfigSource.LOWCODE,
-                  scope: '',
-                });
-
-                const oneTap = new VKID.OneTap();
-                const container = document.getElementById('vk-auth-container');
-                const fallbackBtn = document.getElementById('vk-fallback-btn');
-
-                if (container) {
-                  oneTap.render({
-                    container: container,
-                    showAlternativeLogin: true,
-                    scheme: VKID.Scheme.DARK // Оставил темную тему, чтобы было красиво на сайте
-                  })
-                  .on(VKID.WidgetEvents.ERROR, function(error) {
-                    // Если браузер заблокировал всплывающее окно ВК, показываем синюю кнопку
-                    console.error("VK Error:", error);
-                    container.style.display = 'none';
-                    fallbackBtn.classList.remove('hidden');
-                  })
-                  .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
-                    // ВАЖНО: Вместо VKID.Auth.exchangeCode отправляем код на наш бэкенд!
-                    // Бэкенд сам свяжется с ВК, создаст аккаунт в базе и вернет JWT токен.
-                    const params = new URLSearchParams({ code: payload.code });
-                    window.location.href = `/api/auth/vk/callback?${params.toString()}`;
-                  });
-                }
-              }
-            </script>
             
             <div class="mt-6 pt-6 border-t border-white/5">
                 <p class="text-[11px] text-gray-500 uppercase tracking-widest font-bold flex items-center justify-center gap-1"><i class='bx bx-check-shield text-lg'></i> Безопасный вход</p>
@@ -373,14 +311,12 @@
     <div id="toast-container"></div>
 
     <script>
-        // СЛАЙДЫ НА ГЛАВНОЙ
         const SLIDES =[
             { badge: "АКЦИЯ", color: "bg-indigo-600", title: "Весенняя распродажа! 🌸", text: "Скидки на аккаунты Dota 2 и CS2 до 50%", image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop" },
             { badge: "НОВИНКА", color: "bg-green-500", title: "Ключи Minecraft ⛏️", text: "Официальные ключи Java & Bedrock Edition", image: "https://images.unsplash.com/photo-1600189083288-5a82643a6814?q=80&w=1974&auto=format&fit=crop" },
             { badge: "ТОП ПРОДАЖ", color: "bg-orange-500", title: "Genshin Impact ✨", text: "Безопасный фарм примогемов и прокачка бездны", image: "https://images.unsplash.com/photo-1633511116664-ce88b9075e74?q=80&w=1974&auto=format&fit=crop" }
         ];
 
-        // КАТЕГОРИИ С ЭМОДЗИ (Дизайн как на скриншоте)
         const CATEGORIES = {
             "CS2 🔫": { parent: "🎮 Компьютерные игры", icon: "bx-target-lock", color: "from-orange-500 to-red-500", subs:["Все", "Прайм", "Скины", "Аккаунты"] },
             "Dota 2 🧙‍♂️": { parent: "🎮 Компьютерные игры", icon: "bxl-steam", color: "from-red-600 to-red-800", subs:["Все", "Предметы", "Аккаунты", "MMR Буст"] },
@@ -407,7 +343,7 @@
             let res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : null });
             let data = await res.json();
             if(res.status === 401) { logout(); throw new Error("Требуется авторизация"); }
-            if(!res.ok) throw new Error(data.detail || "Ошибка сервера");
+            if(!res.ok) throw new Error(data.detail || data.error || "Ошибка сервера");
             return data;
         }
 
@@ -460,7 +396,6 @@
             new Swiper(".mySwiper", { loop: true, autoplay: { delay: 4000 }, pagination: { el: ".swiper-pagination" }, navigation: { nextEl: ".swiper-button-next", prevEl: ".swiper-button-prev" }});
         }
 
-        // ОТРИСОВКА КАТЕГОРИЙ (КАК НА СКРИНШОТЕ)
         function renderCategories() {
             const container = document.getElementById('main-categories-container');
             if (container.innerHTML.trim() !== '') return;
@@ -582,7 +517,8 @@
             try {
                 let res = await api(`/api/buy/${id}`, 'POST');
                 showToast(`Успешно! Заказ ${res.order_code}`);
-                checkAuth(); showPage('purchases');
+                await checkAuth();
+                showPage('purchases');
             } catch(e) { showToast(e.message, 'error'); }
         }
 
@@ -594,7 +530,6 @@
                 grid.innerHTML = data.products.length ? '' : '<p class="text-gray-500">Нет активных товаров</p>';
                 data.products.forEach(p => grid.innerHTML += createProductCardHTML({...p, seller: username}));
                 
-                // ОТЗЫВЫ В ПРОФИЛЕ
                 let revBox = document.getElementById('profile-reviews');
                 revBox.innerHTML = data.reviews.length ? '' : '<p class="text-gray-500">Пока нет отзывов</p>';
                 data.reviews.forEach(r => {
@@ -729,19 +664,23 @@
             } catch(e) { token = null; localStorage.removeItem('tf_token'); }
         }
 
+        // КОГДА СТРАНИЦА ЗАГРУЖЕНА
         window.onload = async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const urlToken = urlParams.get('token');
-            const urlCode = urlParams.get('code');
+            
+            // Если ВК вернул ошибку в URL
+            const urlError = urlParams.get('error');
+            const urlErrorDesc = urlParams.get('error_description');
 
             if (urlToken) {
                 localStorage.setItem('tf_token', urlToken); token = urlToken;
                 window.history.replaceState({}, document.title, "/");
                 showToast("Успешный вход через VK!");
-            } else if (urlCode) {
-                // Если ВК вернул нас на главную страницу с кодом — делаем редирект в Python
-                window.location.href = `/api/auth/vk/callback?code=${urlCode}`;
-                return;
+            } else if (urlError) {
+                window.history.replaceState({}, document.title, "/");
+                // Выводим конкретную ошибку, чтобы знать, что не так
+                showToast(`Ошибка ВК: ${urlErrorDesc || urlError}`, "error");
             }
 
             // ЖДЕМ пока проверится токен, и только потом рисуем страницу!

@@ -17,7 +17,12 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
         
-        .bg-mesh { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -2; background: radial-gradient(circle at 20% 0%, rgba(99, 102, 241, 0.05), transparent 40%), radial-gradient(circle at 80% 100%, rgba(14, 165, 233, 0.05), transparent 40%); }
+        .bg-mesh {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -2;
+            background: radial-gradient(circle at 20% 0%, rgba(99, 102, 241, 0.05), transparent 40%),
+                        radial-gradient(circle at 80% 100%, rgba(14, 165, 233, 0.05), transparent 40%);
+        }
+
         .glass-panel { background: rgba(15, 15, 18, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .glass-header { background: rgba(12, 12, 14, 0.8); backdrop-filter: blur(24px); }
         
@@ -29,7 +34,6 @@
         .nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); }
         .nav-item.active { color: #fff; background: rgba(255,255,255,0.1); font-weight: 500; }
         
-        /* КНОПКИ ПОДКАТЕГОРИЙ (КАК ТЫ ХОТЕЛ) */
         .sub-btn { transition: all 0.2s; }
         .sub-btn.active { background: #4f46e5; color: white; border-color: transparent; }
         .sub-btn:not(.active) { background: rgba(255,255,255,0.05); color: #9ca3af; border: 1px solid rgba(255,255,255,0.05); }
@@ -41,7 +45,7 @@
         .product-image-wrapper img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
         .product-card:hover .product-image-wrapper img { transform: scale(1.05); }
 
-        /* ПЛИТКИ КАТЕГОРИЙ (ДИЗАЙН КАК НА ТВОЕМ СКРИНШОТЕ) */
+        /* ПЛИТКИ КАТЕГОРИЙ (КАК НА ТВОЕМ СКРИНШОТЕ) */
         .category-tile { transition: all 0.2s; cursor: pointer; background: #0c0c0e; border: 1px solid rgba(255,255,255,0.03); }
         .category-tile:hover { background: #151518; transform: translateY(-4px); border-color: rgba(255,255,255,0.1); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
         .app-icon { transition: transform 0.3s; }
@@ -95,6 +99,7 @@
         <!-- МАРКЕТ -->
         <section id="page-market" class="page-section active">
             
+            <!-- СЛАЙДЕР -->
             <div class="swiper mySwiper mb-12 h-56 sm:h-72 shadow-2xl border border-white/5">
                 <div class="swiper-wrapper" id="slider-wrapper"></div>
                 <div class="swiper-pagination"></div>
@@ -102,8 +107,10 @@
                 <div class="swiper-button-prev"></div>
             </div>
 
+            <!-- ПЛИТКИ КАТЕГОРИЙ (С ЭМОДЗИ И ДИЗАЙНОМ ИЗ СКРИНШОТА) -->
             <div id="main-categories-container" class="flex flex-col gap-10 mb-16"></div>
 
+            <!-- РАНДОМНЫЕ ОБЪЯВЛЕНИЯ С КАРТИНКАМИ -->
             <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-3"><i class='bx bxs-hot text-orange-500'></i> 🔥 Свежие предложения от игроков</h2>
             <div id="random-products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
         </section>
@@ -124,31 +131,164 @@
 
         <!-- СТРАНИЦА ТОВАРА -->
         <section id="page-product" class="page-section max-w-5xl mx-auto">
-            <!-- (Этот блок остался без изменений) -->
+            <button onclick="showPage('category')" class="text-gray-400 hover:text-white transition flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl w-fit mb-6"><i class='bx bx-arrow-back'></i> К списку товаров</button>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="md:col-span-2 glass-panel p-8 rounded-3xl border border-white/5 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+                    
+                    <div class="mb-3 text-xs font-bold tracking-wider text-indigo-400 uppercase" id="prod-category">Категория</div>
+                    <h2 class="text-3xl font-bold text-white mb-6 leading-tight" id="prod-title">Заголовок</h2>
+                    
+                    <!-- Галерея фото товара -->
+                    <div class="swiper productSwiper mb-6 h-64 sm:h-80 rounded-2xl border border-white/10 hidden" id="prod-image-container">
+                        <div class="swiper-wrapper" id="prod-images"></div>
+                        <div class="swiper-pagination"></div>
+                    </div>
+                    
+                    <div id="prod-warranty" class="hidden flex items-center gap-3 text-green-400 text-sm font-medium mb-8 bg-green-400/10 p-4 rounded-2xl border border-green-400/20">
+                        <i class='bx bx-shield-check text-2xl'></i> Продавец предоставляет гарантию возврата средств
+                    </div>
+
+                    <h3 class="text-lg font-bold text-white mb-4">Описание товара</h3>
+                    <div class="bg-[#0a0a0c] rounded-2xl p-6 text-gray-300 whitespace-pre-wrap leading-relaxed border border-white/5 mb-8" id="prod-desc"></div>
+
+                    <div class="flex items-center justify-between pt-6 border-t border-white/10">
+                        <div>
+                            <p class="text-sm text-gray-400 mb-1">Стоимость</p>
+                            <p class="text-4xl font-black text-white" id="prod-price">0 ₽</p>
+                        </div>
+                        <button id="prod-buy-btn" class="bg-indigo-600 hover:bg-indigo-500 px-10 py-4 rounded-2xl text-white font-bold text-lg transition shadow-[0_0_20px_rgba(99,102,241,0.4)] flex items-center gap-2">
+                            <i class='bx bx-cart-add text-2xl'></i> Купить
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-6">
+                    <div class="glass-panel p-6 rounded-3xl border border-white/5 text-center relative overflow-hidden">
+                        <div class="w-24 h-24 mx-auto rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 flex items-center justify-center text-4xl font-bold text-white mb-4 shadow-xl border-4 border-[#121216]"><i class='bx bx-user'></i></div>
+                        <h3 class="text-xl font-bold text-white mb-1" id="prod-seller-name">Seller</h3>
+                        <p class="text-sm text-green-400 mb-6 font-medium flex items-center justify-center gap-1"><span class="w-2 h-2 rounded-full bg-green-400 inline-block animate-pulse"></span> В сети</p>
+                        <button onclick="openProfile(document.getElementById('prod-seller-name').innerText)" class="w-full bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl font-medium transition border border-white/10">Профиль продавца</button>
+                    </div>
+
+                    <div class="glass-panel rounded-3xl border border-white/5 flex flex-col h-[450px]">
+                        <div class="p-5 border-b border-white/5 flex justify-between items-center bg-white/5 rounded-t-3xl">
+                            <h3 class="font-bold text-white flex items-center gap-2"><i class='bx bx-message-rounded-dots text-indigo-400'></i> Чат с продавцом</h3>
+                            <button onclick="blockUser(document.getElementById('prod-seller-name').innerText)" class="text-gray-500 hover:text-red-400 transition" title="Заблокировать"><i class='bx bx-block text-xl'></i></button>
+                        </div>
+                        <div id="private-chat-box" class="flex-1 p-5 overflow-y-auto flex flex-col gap-4"></div>
+                        <div class="p-4 border-t border-white/5 bg-black/20 rounded-b-3xl">
+                            <div class="flex gap-2">
+                                <input type="text" id="private-chat-input" placeholder="Написать сообщение..." class="flex-1 bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 transition" onkeypress="if(event.key === 'Enter') sendPrivateMessage()">
+                                <button onclick="sendPrivateMessage()" class="bg-indigo-600 w-12 rounded-xl text-white hover:bg-indigo-500 transition flex items-center justify-center shadow-lg"><i class='bx bxs-send text-xl'></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ И ОТЗЫВЫ -->
         <section id="page-profile" class="page-section max-w-5xl mx-auto">
-            <!-- (Этот блок остался без изменений) -->
+            <div class="glass-panel p-10 rounded-3xl border border-white/5 flex items-center gap-8 mb-10 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-indigo-600/20 to-purple-600/20"></div>
+                <div class="w-32 h-32 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-5xl font-bold text-white shadow-2xl border-4 border-[#121216] relative z-10"><i class='bx bx-user'></i></div>
+                <div class="relative z-10">
+                    <h2 class="text-4xl font-black text-white mb-2" id="profile-name">Username</h2>
+                    <p class="text-gray-400 mb-4 flex items-center gap-2"><i class='bx bx-time-five'></i> На TradeFlow с недавних пор</p>
+                </div>
+            </div>
+            
+            <h3 class="text-2xl font-bold text-white mb-6 flex items-center gap-2"><i class='bx bx-package text-indigo-400'></i> Объявления продавца</h3>
+            <div id="profile-products" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-16"></div>
+
+            <h3 class="text-2xl font-bold text-white mb-6 flex items-center gap-2"><i class='bx bxs-star text-yellow-500'></i> Отзывы покупателей</h3>
+            <div id="profile-reviews" class="flex flex-col gap-4"></div>
         </section>
 
         <!-- ПРОДАЖА (С ДОБАВЛЕНИЕМ ФОТО) -->
         <section id="page-sell" class="page-section max-w-3xl mx-auto">
-             <!-- (Этот блок остался без изменений) -->
+            <h2 class="text-3xl font-bold text-white mb-8 text-center">Создать объявление</h2>
+            <div class="glass-panel rounded-3xl p-8 sm:p-10 border border-white/5 shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+                <form id="sell-form" onsubmit="submitProduct(event)" class="flex flex-col gap-6 relative z-10">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-2">Игра / Сервис</label>
+                            <select id="sell-category" onchange="updateSellSubcategories()" class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition"></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-2">Тип товара</label>
+                            <select id="sell-subcategory" class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition"></select>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-2">Заголовок</label>
+                        <input type="text" id="sell-title" required placeholder="Например: Жирный аккаунт CS2, 5000 часов" class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-2 flex justify-between">Фотографии (ссылки) <span class="text-indigo-400" id="img-counter">1/8</span></label>
+                        <div id="image-inputs-container" class="flex flex-col gap-2 mb-3">
+                            <input type="url" placeholder="https://imgur.com/фото1.jpg" class="img-input w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-sm text-white outline-none focus:border-indigo-500">
+                        </div>
+                        <button type="button" onclick="addImageInput()" class="text-indigo-400 hover:text-indigo-300 text-sm font-bold flex items-center gap-1 w-fit"><i class='bx bx-plus-circle'></i> Добавить еще фото</button>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-2">Подробное описание</label>
+                        <textarea id="sell-desc" required placeholder="Опишите все преимущества вашего товара..." class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition h-32 resize-none"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center bg-white/5 p-6 rounded-2xl border border-white/5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Цена (RUB)</label>
+                            <div class="relative">
+                                <input type="number" id="sell-price" required min="1" class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 pl-10 text-white outline-none focus:border-indigo-500 font-bold text-lg">
+                                <i class='bx bx-ruble absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl'></i>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 md:mt-0 flex items-center justify-end">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="sell-warranty" class="sr-only peer">
+                                <div class="w-12 h-7 bg-black/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
+                                <span class="ml-3 text-sm font-bold text-white flex items-center gap-1"><i class='bx bx-shield-check text-green-400 text-lg'></i> Гарантия</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mt-2 p-6 rounded-2xl border border-dashed border-indigo-500/50 bg-indigo-500/10 relative">
+                        <div class="absolute -top-3 left-6 bg-[#15151a] px-3 py-0.5 rounded-full border border-indigo-500/30 text-xs text-indigo-300 font-bold flex items-center gap-1"><i class='bx bxs-lock-alt'></i> Секретные данные (только для покупателя)</div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                            <input type="text" id="sell-login" required placeholder="Логин (Steam/Epic/etc)" class="w-full bg-[#0a0a0c] border border-indigo-500/30 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500">
+                            <input type="text" id="sell-password" required placeholder="Пароль" class="w-full bg-[#0a0a0c] border border-indigo-500/30 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-4 rounded-xl transition mt-4 shadow-lg shadow-indigo-500/30 text-lg">🚀 Опубликовать товар</button>
+                </form>
+            </div>
         </section>
 
         <!-- ПОКУПКИ И СООБЩЕНИЯ -->
         <section id="page-messages" class="page-section max-w-4xl mx-auto">
-             <!-- (Этот блок остался без изменений) -->
+            <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-2"><i class='bx bx-message-square-dots text-indigo-500'></i> Мои диалоги</h2>
+            <div class="glass-panel p-16 rounded-3xl border border-white/5 text-center text-gray-400 shadow-xl">
+                <i class='bx bx-ghost text-6xl mb-4'></i><p>Здесь пока пусто. Напишите кому-нибудь!</p>
+            </div>
         </section>
 
         <section id="page-purchases" class="page-section max-w-5xl mx-auto">
-            <!-- (Этот блок остался без изменений) -->
+            <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-2"><i class='bx bx-shopping-bag text-indigo-500'></i> История покупок</h2>
+            <div id="purchases-grid" class="flex flex-col gap-6"></div>
         </section>
 
     </main>
 
-    <!-- МОДАЛКА ВХОДА ЧЕРЕЗ VK (ФИНАЛЬНАЯ ВЕРСИЯ) -->
+    <!-- МОДАЛКА ВХОДА ЧЕРЕЗ VK -->
     <div id="auth-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity">
         <div class="glass-panel border border-white/10 rounded-[2rem] p-10 max-w-sm w-full mx-4 relative animate-[fadeUp_0.3s_ease] text-center shadow-2xl">
             <button onclick="closeAuth()" class="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition"><i class='bx bx-x text-xl'></i></button>
@@ -160,10 +300,57 @@
             <h3 class="text-2xl font-black text-white mb-2">Вход в TradeFlow</h3>
             <p class="text-gray-400 text-sm mb-8 leading-relaxed">Для безопасных покупок и продаж необходимо войти в систему</p>
 
-            <!-- ГАРАНТИРОВАННАЯ КНОПКА ВХОДА -->
-            <a href="/api/auth/vk" class="w-full bg-[#0077FF] hover:bg-[#0066eb] text-white py-3.5 rounded-xl font-bold transition flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(0,119,255,0.3)] mb-4">
+            <!-- ГАРАНТИРОВАННЫЙ КОНТЕЙНЕР ДЛЯ ВИДЖЕТА ВК -->
+            <div id="vk-auth-container" class="flex justify-center w-full min-h-[44px] mb-4"></div>
+            
+            <!-- ЗАПАСНАЯ КНОПКА (если браузер блокирует скрипты ВК) -->
+            <a href="/api/auth/vk" id="vk-fallback-btn" class="hidden w-full bg-[#0077FF] hover:bg-[#0066eb] text-white py-3.5 rounded-xl font-bold transition flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(0,119,255,0.3)] mb-4">
                 <i class='bx bxl-vk text-2xl'></i> Войти через ВКонтакте
             </a>
+            
+<!-- ОФИЦИАЛЬНЫЙ СКРИПТ ВКОНТАКТЕ -->
+            <script src="https://unpkg.com/@vkid/sdk@latest/dist-sdk/umd/index.js"></script>
+            <script type="text/javascript">
+              if ('VKIDSDK' in window) {
+                const VKID = window.VKIDSDK;
+                
+                VKID.Config.init({
+                  // ===============================================
+                  // ВАЖНО: ВПИШИ СЮДА СВОЙ ID ПРИЛОЖЕНИЯ ВКОНТАКТЕ!
+                  app: 54566173, 
+                  // ===============================================
+                  redirectUrl: 'https://wdai51.vercel.app/api/auth/vk/callback',
+                  responseMode: VKID.ConfigResponseMode.Callback
+                });
+
+                const oneTap = new VKID.OneTap();
+                const container = document.getElementById('vk-auth-container');
+                const fallbackBtn = document.getElementById('vk-fallback-btn');
+                
+                if (container) {
+                    oneTap.render({
+                        container: container,
+                        scheme: VKID.Scheme.DARK, // Темная тема (гармонирует с сайтом)
+                        lang: VKID.Languages.RUS, // Язык
+                        showAlternativeLogin: true // Кнопка "Войти в другой аккаунт"
+                    })
+                    .on(VKID.WidgetEvents.ERROR, function(error) {
+                        console.error("VK Error:", error);
+                        // Если виджет заблокировался (AdBlock/TPC), показываем обычную кнопку
+                        container.style.display = 'none';
+                        fallbackBtn.classList.remove('hidden');
+                    })
+                    .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
+                        // Передаем как code, так и device_id (рекомендация для бекенда)
+                        const params = new URLSearchParams({
+                            code: payload.code,
+                            device_id: payload.device_id || ''
+                        });
+                        window.location.href = `/api/auth/vk/callback?${params.toString()}`;
+                    });
+                }
+              }
+            </script>
             
             <div class="mt-6 pt-6 border-t border-white/5">
                 <p class="text-[11px] text-gray-500 uppercase tracking-widest font-bold flex items-center justify-center gap-1"><i class='bx bx-check-shield text-lg'></i> Безопасный вход</p>
@@ -174,7 +361,16 @@
 
     <!-- МОДАЛКА ОТЗЫВА -->
     <div id="review-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/80 backdrop-blur-md">
-        <!-- (Этот блок остался без изменений) -->
+        <div class="glass-panel border border-white/10 rounded-3xl p-8 max-w-md w-full mx-4 relative">
+            <h3 class="text-xl font-bold text-white mb-4">Оставить отзыв</h3>
+            <input type="hidden" id="review-product-id">
+            <input type="hidden" id="review-seller-id">
+            <textarea id="review-text" placeholder="Напишите ваш отзыв о товаре и продавце..." class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-4 text-white outline-none h-32 resize-none mb-4"></textarea>
+            <div class="flex gap-4">
+                <button onclick="document.getElementById('review-modal').classList.add('hidden')" class="flex-1 bg-white/10 text-white py-3 rounded-xl hover:bg-white/20 transition">Отмена</button>
+                <button onclick="submitReview()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold transition">Опубликовать</button>
+            </div>
+        </div>
     </div>
 
     <div id="toast-container"></div>
@@ -189,7 +385,7 @@
 
         // КАТЕГОРИИ С ЭМОДЗИ (Дизайн как на скриншоте)
         const CATEGORIES = {
-            "CS2 🔫": { parent: "🎮 Компьютерные игры", icon: "bx-target-lock", color: "from-orange-500 to-red-500", subs:["Все", "Скины", "Аккаунты", "Буст"] },
+            "CS2 🔫": { parent: "🎮 Компьютерные игры", icon: "bx-target-lock", color: "from-orange-500 to-red-500", subs:["Все", "Прайм", "Скины", "Аккаунты"] },
             "Dota 2 🧙‍♂️": { parent: "🎮 Компьютерные игры", icon: "bxl-steam", color: "from-red-600 to-red-800", subs:["Все", "Предметы", "Аккаунты", "MMR Буст"] },
             "Valorant 🎯": { parent: "🎮 Компьютерные игры", icon: "bx-crosshair", color: "from-red-400 to-red-600", subs:["Все", "Points", "Аккаунты"] },
             "Minecraft ⛏️": { parent: "🎮 Компьютерные игры", icon: "bx-cube", color: "from-green-400 to-green-600", subs:["Все", "Лицензии", "Донат"] },
@@ -199,9 +395,6 @@
             "Discord 👾": { parent: "🛠️ Программы и сервисы", icon: "bxl-discord", color: "from-indigo-400 to-indigo-600", subs:["Все", "Nitro", "Бусты"] },
             "Разное 📦": { parent: "📦 Разное", icon: "bx-package", color: "from-gray-600 to-gray-800", subs:["Все", "Остальное"] }
         };
-
-        // --- ОСТАЛЬНОЙ JAVASCRIPT-КОД ОСТАЛСЯ БЕЗ ИЗМЕНЕНИЙ ---
-        // (Я скопирую его сюда, чтобы у тебя был полный файл)
 
         let currentCategory = 'All', currentSubcategory = 'Все', currentSearch = '';
         let token = localStorage.getItem('tf_token');
@@ -215,16 +408,10 @@
             if(token) headers['Authorization'] = `Bearer ${token}`;
             if(body) headers['Content-Type'] = 'application/json';
             let res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : null });
+            let data = await res.json();
             if(res.status === 401) { logout(); throw new Error("Требуется авторизация"); }
-            if(!res.ok) {
-                const data = await res.json();
-                throw new Error(data.detail || "Ошибка сервера");
-            }
-            // Если ответ пустой (например, при удачном POST запросе без возвращаемого тела)
-            if (res.headers.get("content-length") === "0" || res.status === 204) {
-                 return {};
-            }
-            return res.json();
+            if(!res.ok) throw new Error(data.detail || "Ошибка сервера");
+            return data;
         }
 
         function showToast(msg, type = 'success') {
@@ -276,7 +463,7 @@
             new Swiper(".mySwiper", { loop: true, autoplay: { delay: 4000 }, pagination: { el: ".swiper-pagination" }, navigation: { nextEl: ".swiper-button-next", prevEl: ".swiper-button-prev" }});
         }
 
-        // ОТРИСОВКА КАТЕГОРИЙ ПЛИТКАМИ
+        // ОТРИСОВКА КАТЕГОРИЙ (КАК НА СКРИНШОТЕ)
         function renderCategories() {
             const container = document.getElementById('main-categories-container');
             if (container.innerHTML.trim() !== '') return;
@@ -398,8 +585,7 @@
             try {
                 let res = await api(`/api/buy/${id}`, 'POST');
                 showToast(`Успешно! Заказ ${res.order_code}`);
-                await checkAuth();
-                showPage('purchases');
+                checkAuth(); showPage('purchases');
             } catch(e) { showToast(e.message, 'error'); }
         }
 
@@ -411,6 +597,7 @@
                 grid.innerHTML = data.products.length ? '' : '<p class="text-gray-500">Нет активных товаров</p>';
                 data.products.forEach(p => grid.innerHTML += createProductCardHTML({...p, seller: username}));
                 
+                // ОТЗЫВЫ В ПРОФИЛЕ
                 let revBox = document.getElementById('profile-reviews');
                 revBox.innerHTML = data.reviews.length ? '' : '<p class="text-gray-500">Пока нет отзывов</p>';
                 data.reviews.forEach(r => {
@@ -545,24 +732,26 @@
             } catch(e) { token = null; localStorage.removeItem('tf_token'); }
         }
 
-        document.addEventListener("DOMContentLoaded", async () => {
+        window.onload = async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const urlToken = urlParams.get('token');
-            const urlError = urlParams.get('error');
+            const urlCode = urlParams.get('code');
 
             if (urlToken) {
                 localStorage.setItem('tf_token', urlToken); token = urlToken;
                 window.history.replaceState({}, document.title, "/");
                 showToast("Успешный вход через VK!");
-            } else if (urlError) {
-                window.history.replaceState({}, document.title, "/");
-                showToast("Ошибка авторизации VK", "error");
+            } else if (urlCode) {
+                // Если ВК вернул нас на главную страницу с кодом — делаем редирект в Python
+                window.location.href = `/api/auth/vk/callback?code=${urlCode}`;
+                return;
             }
 
+            // ЖДЕМ пока проверится токен, и только потом рисуем страницу!
             await checkAuth(); 
             initSellForm(); 
             showPage('market'); 
-        });
+        };
 
         function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
         function closeAuth() { document.getElementById('auth-modal').classList.add('hidden'); }

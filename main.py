@@ -58,19 +58,36 @@ async def vk_login():
     return RedirectResponse(url)
 
 @app.get("/api/auth/vk/callback")
-async def vk_callback(code: str, db: AsyncSession = Depends(get_db)):
+async def vk_callback(code: str, device_id: str = None, db: AsyncSession = Depends(get_db)):
     if not VK_CLIENT_SECRET:
         return JSONResponse(status_code=500, content={"error": "VK_CLIENT_SECRET не настроен в Vercel!"})
 
     async with httpx.AsyncClient() as client:
-        token_res = await client.get(f"https://oauth.vk.com/access_token?client_id={VK_CLIENT_ID}&client_secret={VK_CLIENT_SECRET}&redirect_uri={VK_REDIRECT_URI}&code={code}")
+        # 1. Попытка через новый API VK ID (как указано в документации One Tap)
+        data = {
+            "grant_type": "authorization_code",
+            "client_id": VK_CLIENT_ID,
+            "client_secret": VK_CLIENT_SECRET,
+            "redirect_uri": VK_REDIRECT_URI,
+            "code": code
+        }
+        if device_id:
+            data["device_id"] = device_id
+            
+        token_res = await client.post("https://id.vk.ru/oauth2/auth", data=data)
         token_data = token_res.json()
         
+        # 2. Фолбэк на классический OAuth, если id.vk.ru отклоняет запрос
+        if "error" in token_data:
+            token_res = await client.get(f"https://oauth.vk.com/access_token?client_id={VK_CLIENT_ID}&client_secret={VK_CLIENT_SECRET}&redirect_uri={VK_REDIRECT_URI}&code={code}")
+            token_data = token_res.json()
+
         if "error" in token_data:
             return JSONResponse(status_code=400, content={"VK_ERROR": token_data})
 
         access_token = token_data["access_token"]
         vk_user_id = token_data["user_id"]
+        
         user_res = await client.get(f"https://api.vk.com/method/users.get?user_ids={vk_user_id}&fields=photo_100&access_token={access_token}&v=5.131")
         user_info = user_res.json()["response"][0]
 
@@ -106,7 +123,7 @@ async def get_products(category: str = "All", subcategory: str = "Все", searc
 
 @app.post("/api/sell")
 async def add_product(data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    images_str = ",".join(data.get('images', [])[:8]) # Максимум 8 фото
+    images_str = ",".join(data.get('images', [])[:8])
     new_product = Product(
         seller_id=user.id, category=data['category'], subcategory=data.get('subcategory', 'Разное'),
         title=data['title'], description=data['description'], has_warranty=data['warranty'],
@@ -153,7 +170,6 @@ async def get_user_profile(username: str, db: AsyncSession = Depends(get_db)):
     prod_res = await db.execute(select(Product).filter_by(seller_id=u.id, status="active"))
     products = prod_res.scalars().all()
 
-    # Загружаем отзывы о продавце
     rev_res = await db.execute(select(Review, User.username).join(User, Review.buyer_id == User.id).filter(Review.seller_id == u.id))
     reviews =[{"id": r.id, "buyer": buyer_name, "text": r.text, "reply": r.seller_reply, "date": r.timestamp.strftime("%d.%m.%Y")} for r, buyer_name in rev_res]
     
@@ -163,22 +179,19 @@ async def get_user_profile(username: str, db: AsyncSession = Depends(get_db)):
         "reviews": reviews
     }
 
-# --- ОТЗЫВЫ ---
 @app.post("/api/reviews")
 async def post_review(data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    # Проверяем, существует ли уже отзыв от этого покупателя на этот товар
     rev_res = await db.execute(select(Review).filter_by(buyer_id=user.id, product_id=data['product_id']))
     review = rev_res.scalar_one_or_none()
 
     if review:
-        review.text = data['text'] # Обновляем текст (ответ продавца не слетает!)
+        review.text = data['text']
         action = "изменил"
     else:
         review = Review(product_id=data['product_id'], buyer_id=user.id, seller_id=data['seller_id'], text=data['text'])
         db.add(review)
         action = "оставил"
 
-    # Отправляем системное сообщение в чат
     sys_msg = PrivateMessage(sender_id=user.id, receiver_id=data['seller_id'], text=f"📢 Покупатель {action} отзыв: «{data['text']}»")
     db.add(sys_msg)
     await db.commit()
@@ -194,7 +207,6 @@ async def reply_review(review_id: int, data: dict, user: User = Depends(get_curr
     await db.commit()
     return {"status": "success"}
 
-# --- ЧАТ ---
 @app.get("/api/messages/{username}")
 async def get_private_chat(username: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     target_res = await db.execute(select(User).filter_by(username=username))

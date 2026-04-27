@@ -2,11 +2,9 @@ import os
 import uuid
 import jwt
 import httpx
-import base64
-import hashlib
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, Request, HTTPException, Header, Response
+from fastapi import FastAPI, Depends, Request, HTTPException, Header
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +21,7 @@ SECRET_KEY = "tradeflow_super_secret"
 # КЛЮЧИ ПРИЛОЖЕНИЯ ВКОНТАКТЕ
 # ==========================================
 VK_CLIENT_ID = "54566173" 
-VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET") # Берем из Vercel!
+VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET") # Берется из настроек Vercel
 VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback"
 
 # --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL ---
@@ -56,148 +54,141 @@ class VKTokenRequest(BaseModel):
     access_token: str
 
 # ==========================================
-# --- НОВАЯ ЖЕЛЕЗОБЕТОННАЯ АВТОРИЗАЦИЯ VK ID (PKCE) ---
+# --- БРОНЕБОЙНАЯ АВТОРИЗАЦИЯ VK ---
 # ==========================================
 
 @app.get("/api/auth/vk")
 async def vk_login():
-    if not VK_CLIENT_ID:
-        return JSONResponse(status_code=500, content={"error": "VK_CLIENT_ID не настроен!"})
-        
-    # Генерируем ключи шифрования (PKCE), которые теперь ТРЕБУЕТ ВКонтакте
-    code_verifier = base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
-    code_challenge = base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode('utf-8')).digest()).decode('utf-8').rstrip('=')
-    
-    # ИСПОЛЬЗУЕМ НОВЫЙ ENDPOINT id.vk.com (старый oauth.vk.com больше не работает для новых приложений)
-    url = f"https://id.vk.com/authorize?response_type=code&client_id={VK_CLIENT_ID}&redirect_uri={VK_REDIRECT_URI}&code_challenge={code_challenge}&code_challenge_method=S256&state=login"
-    
-    response = RedirectResponse(url)
-    # Сохраняем ключ проверки в куки для второго шага
-    response.set_cookie(key="vk_code_verifier", value=code_verifier, httponly=True, max_age=600, secure=True, samesite="lax")
-    return response
+    url = f"https://oauth.vk.com/authorize?client_id={VK_CLIENT_ID}&display=page&redirect_uri={VK_REDIRECT_URI}&scope=email&response_type=code&v=5.131"
+    return RedirectResponse(url)
 
 @app.get("/api/auth/vk/callback")
-async def vk_callback(request: Request, code: str = None, device_id: str = None, error: str = None, error_description: str = None, db: AsyncSession = Depends(get_db)):
-    if error:
-        return RedirectResponse(url=f"/?error={error_description}")
-    if not code:
-        return RedirectResponse(url="/?error=Код_от_ВК_не_получен")
-        
-    code_verifier = request.cookies.get("vk_code_verifier")
-    if not code_verifier:
-        return RedirectResponse(url="/?error=Сессия_устарела_или_куки_заблокированы")
+async def vk_callback(code: str = None, error: str = None, error_description: str = None, db: AsyncSession = Depends(get_db)):
+    try:
+        if error:
+            return RedirectResponse(url=f"/?error={error_description}")
+        if not code:
+            return RedirectResponse(url="/?error=ВК_не_прислал_код_подтверждения")
+            
+        if not VK_CLIENT_SECRET:
+            return RedirectResponse(url="/?error=Сервер_не_настроен:_отсутствует_VK_CLIENT_SECRET")
 
-    async with httpx.AsyncClient() as client:
-        # 1. Обмен кода на токен через новый API VK ID
-        token_data_req = {
-            "grant_type": "authorization_code",
-            "client_id": VK_CLIENT_ID,
-            "client_secret": VK_CLIENT_SECRET or "",
-            "code": code,
-            "code_verifier": code_verifier,
-            "device_id": device_id or "",
-            "redirect_uri": VK_REDIRECT_URI,
-            "state": "login"
-        }
-        
-        token_res = await client.post("https://id.vk.com/oauth2/auth", data=token_data_req, headers={"Content-Type": "application/x-www-form-urlencoded"})
-        token_data = token_res.json()
-        
-        if "error" in token_data:
-            err_msg = token_data.get('error_description', token_data.get('error'))
-            return RedirectResponse(url=f"/?error=Ошибка_токена_{err_msg}")
+        async with httpx.AsyncClient() as client:
+            # 1. Получаем токен
+            token_url = f"https://oauth.vk.com/access_token?client_id={VK_CLIENT_ID}&client_secret={VK_CLIENT_SECRET}&redirect_uri={VK_REDIRECT_URI}&code={code}"
+            token_res = await client.get(token_url)
+            token_data = token_res.json()
+            
+            if "error" in token_data:
+                err = token_data.get("error_description", token_data.get("error"))
+                return RedirectResponse(url=f"/?error=ВК_отклонил_запрос_{err}")
 
-        access_token = token_data.get("access_token")
-        
-        # 2. Получение данных пользователя
-        user_res = await client.post("https://id.vk.com/oauth2/user_info", data={
-            "client_id": VK_CLIENT_ID,
-            "access_token": access_token
-        }, headers={"Content-Type": "application/x-www-form-urlencoded"})
-        user_data = user_res.json()
-        
-        if "user" in user_data:
-            u_info = user_data["user"]
-            vk_user_id = u_info.get("user_id")
-            first_name = u_info.get("first_name", "")
-            last_name = u_info.get("last_name", "")
-            avatar = u_info.get("avatar", "")
-        else:
-            # Страховка: запрос к старому API, если новый не отдал данные
-            old_res = await client.get(f"https://api.vk.com/method/users.get?fields=photo_100&access_token={access_token}&v=5.131")
-            old_data = old_res.json()
-            if "response" in old_data and len(old_data["response"]) > 0:
+            access_token = token_data.get("access_token")
+            if not access_token:
+                return RedirectResponse(url="/?error=Не_удалось_получить_access_token")
+
+            # 2. Пытаемся получить данные пользователя через новый API
+            user_info_res = await client.post("https://id.vk.com/oauth2/user_info", data={
+                "client_id": VK_CLIENT_ID,
+                "access_token": access_token
+            }, headers={"Content-Type": "application/x-www-form-urlencoded"})
+            user_data = user_info_res.json()
+
+            if "user" in user_data:
+                u_info = user_data["user"]
+                vk_user_id = int(u_info.get("user_id"))
+                first_name = u_info.get("first_name", "")
+                last_name = u_info.get("last_name", "")
+                avatar = u_info.get("avatar", "")
+            else:
+                # 3. Если новый API не дал ответ, используем старый, надежный метод
+                vk_user_id_raw = token_data.get("user_id")
+                if not vk_user_id_raw:
+                    return RedirectResponse(url="/?error=ВК_не_прислал_ID_пользователя")
+                    
+                old_res = await client.get(f"https://api.vk.com/method/users.get?user_ids={vk_user_id_raw}&fields=photo_100&access_token={access_token}&v=5.131")
+                old_data = old_res.json()
+                
+                if "response" not in old_data or len(old_data["response"]) == 0:
+                    return RedirectResponse(url="/?error=Ошибка_получения_профиля_ВК")
+                    
                 u_info = old_data["response"][0]
-                vk_user_id = u_info["id"]
+                vk_user_id = int(u_info["id"])
                 first_name = u_info.get("first_name", "")
                 last_name = u_info.get("last_name", "")
                 avatar = u_info.get("photo_100", "")
-            else:
-                return RedirectResponse(url="/?error=Не_удалось_получить_профиль")
 
-    res = await db.execute(select(User).filter_by(vk_id=vk_user_id))
-    user = res.scalar_one_or_none()
+        # 4. Сохраняем или находим пользователя в БД
+        res = await db.execute(select(User).filter_by(vk_id=vk_user_id))
+        user = res.scalar_one_or_none()
 
-    if not user:
-        user = User(
-            vk_id=vk_user_id,
-            username=f"{first_name} {last_name}".strip() or f"User{vk_user_id}",
-            avatar_url=avatar,
-            balance=5000.0
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+        if not user:
+            user = User(
+                vk_id=vk_user_id,
+                username=f"{first_name} {last_name}".strip() or f"User{vk_user_id}",
+                avatar_url=avatar,
+                balance=5000.0
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
 
-    token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
-    
-    response = RedirectResponse(url=f"/?token={token}")
-    response.delete_cookie("vk_code_verifier")
-    return response
+        # 5. Выдаем наш токен
+        token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
+        return RedirectResponse(url=f"/?token={token}")
+
+    except Exception as e:
+        # Теперь вместо 500 ошибки юзер увидит красивую всплывашку на сайте с причиной
+        error_msg = str(e).replace(" ", "_")
+        return RedirectResponse(url=f"/?error=Системная_ошибка_{error_msg}")
 
 @app.post("/api/auth/vk/token")
 async def vk_token_auth(data: VKTokenRequest, db: AsyncSession = Depends(get_db)):
-    async with httpx.AsyncClient() as client:
-        user_res = await client.post("https://id.vk.com/oauth2/user_info", data={
-            "client_id": VK_CLIENT_ID,
-            "access_token": data.access_token
-        }, headers={"Content-Type": "application/x-www-form-urlencoded"})
-        user_data = user_res.json()
-        
-        if "user" in user_data:
-            u_info = user_data["user"]
-            vk_user_id = u_info.get("user_id")
-            first_name = u_info.get("first_name", "")
-            last_name = u_info.get("last_name", "")
-            avatar = u_info.get("avatar", "")
-        else:
-            old_res = await client.get(f"https://api.vk.com/method/users.get?fields=photo_100&access_token={data.access_token}&v=5.131")
-            old_data = old_res.json()
-            if "response" in old_data and len(old_data["response"]) > 0:
-                u_info = old_data["response"][0]
-                vk_user_id = u_info["id"]
+    try:
+        async with httpx.AsyncClient() as client:
+            user_res = await client.post("https://id.vk.com/oauth2/user_info", data={
+                "client_id": VK_CLIENT_ID,
+                "access_token": data.access_token
+            }, headers={"Content-Type": "application/x-www-form-urlencoded"})
+            user_data = user_res.json()
+            
+            if "user" in user_data:
+                u_info = user_data["user"]
+                vk_user_id = int(u_info.get("user_id"))
                 first_name = u_info.get("first_name", "")
                 last_name = u_info.get("last_name", "")
-                avatar = u_info.get("photo_100", "")
+                avatar = u_info.get("avatar", "")
             else:
-                raise HTTPException(status_code=400, detail="Неверный токен ВК")
-                
-    res = await db.execute(select(User).filter_by(vk_id=vk_user_id))
-    user = res.scalar_one_or_none()
+                old_res = await client.get(f"https://api.vk.com/method/users.get?fields=photo_100&access_token={data.access_token}&v=5.131")
+                old_data = old_res.json()
+                if "response" in old_data and len(old_data["response"]) > 0:
+                    u_info = old_data["response"][0]
+                    vk_user_id = int(u_info["id"])
+                    first_name = u_info.get("first_name", "")
+                    last_name = u_info.get("last_name", "")
+                    avatar = u_info.get("photo_100", "")
+                else:
+                    return JSONResponse(status_code=400, content={"detail": "Не удалось получить профиль ВК"})
+                    
+        res = await db.execute(select(User).filter_by(vk_id=vk_user_id))
+        user = res.scalar_one_or_none()
 
-    if not user:
-        user = User(
-            vk_id=vk_user_id,
-            username=f"{first_name} {last_name}".strip() or f"User{vk_user_id}",
-            avatar_url=avatar,
-            balance=5000.0
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+        if not user:
+            user = User(
+                vk_id=vk_user_id,
+                username=f"{first_name} {last_name}".strip() or f"User{vk_user_id}",
+                avatar_url=avatar,
+                balance=5000.0
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
 
-    token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
-    return {"token": token}
+        token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
+        return {"token": token}
+        
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"detail": f"Ошибка сервера: {str(e)}"})
 
 
 # --- ОСТАЛЬНЫЕ ЭНДПОИНТЫ ---

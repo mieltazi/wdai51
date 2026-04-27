@@ -11,7 +11,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 
-    <!-- ИСПРАВЛЕННАЯ ССЫЛКА НА СКРИПТ ВК -->
     <script src="https://unpkg.com/@vkid/sdk@3.0.0/dist-sdk/umd/index.js"></script>
 
     <style>
@@ -129,7 +128,6 @@
                     <div class="mb-3 text-xs font-bold tracking-wider text-indigo-400 uppercase" id="prod-category">Категория</div>
                     <h2 class="text-3xl font-bold text-white mb-6 leading-tight" id="prod-title">Заголовок</h2>
                     
-                    <!-- Галерея фото товара -->
                     <div class="swiper productSwiper mb-6 h-64 sm:h-80 rounded-2xl border border-white/10 hidden" id="prod-image-container">
                         <div class="swiper-wrapper" id="prod-images"></div>
                         <div class="swiper-pagination"></div>
@@ -275,9 +273,10 @@
             <h3 class="text-2xl font-black text-white mb-2">Вход в TradeFlow</h3>
             <p class="text-gray-400 text-sm mb-6">Для безопасных покупок и продаж</p>
             
+            <div id="vk-loading" class="text-gray-500 text-sm mb-2 hidden">Загрузка виджета...</div>
             <div id="vk-auth-container" class="flex justify-center w-full min-h-[44px]"></div>
             
-            <!-- ДОБАВЛЕНА КНОПКА FALLBACK ДЛЯ ИСКЛЮЧЕНИЯ JS ОШИБКИ И СТРАХОВКИ ОТ АДБЛОКА -->
+            <!-- ЖЕЛЕЗОБЕТОННАЯ КНОПКА (Она теперь всегда работает без Security Error) -->
             <a href="/api/auth/vk" id="vk-fallback-btn" class="hidden mt-2 w-full bg-[#0077FF] hover:bg-[#0066CC] text-white py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg">
                 <i class='bx bxl-vk text-xl'></i> Войти через ВКонтакте
             </a>
@@ -399,7 +398,7 @@
                 grouped[data.parent].push({name: game, ...data});
             }
             
-            for (const [parent, games] of Object.entries(grouped)) {
+            for (const[parent, games] of Object.entries(grouped)) {
                 let html = `
                 <div class="mb-4">
                     <div class="flex items-center gap-3 mb-5">
@@ -659,15 +658,18 @@
         function openAuthModal() { 
             const modal = document.getElementById('auth-modal');
             modal.classList.remove('hidden'); 
-            initVKWidget();
+            // ЗАДЕРЖКА: чтобы окно успело появиться, и виджет ВК смог вычислить свои размеры
+            setTimeout(initVKWidget, 150);
         }
 
         function initVKWidget() {
             const container = document.getElementById('vk-auth-container');
             const fallbackBtn = document.getElementById('vk-fallback-btn');
+            const loadingText = document.getElementById('vk-loading');
             
-            // Если блокировщик рекламы заблочил скрипт ВК, включаем обычную кнопку
+            // Если скрипт ВК заблокирован
             if (!('VKIDSDK' in window)) {
+                if(loadingText) loadingText.style.display = 'none';
                 if(container) container.style.display = 'none';
                 if(fallbackBtn) fallbackBtn.classList.remove('hidden');
                 return;
@@ -683,15 +685,16 @@
 
             const oneTap = new VKID.OneTap();
 
-            if(fallbackBtn) fallbackBtn.style.display = 'none';
+            if(fallbackBtn) fallbackBtn.classList.add('hidden');
             if(container) container.style.display = 'flex';
+            if(loadingText) loadingText.style.display = 'none';
             
             oneTap.render({ container: container, showAlternativeLogin: true })
             .on(VKID.WidgetEvents.ERROR, function(error) {
                 console.error("VK Widget Error:", error);
                 if(container) container.style.display = 'none';
+                // Если виджет упал на телефоне, мгновенно показываем 100% рабочую кнопку
                 if(fallbackBtn) fallbackBtn.classList.remove('hidden');
-                showToast("Не удалось загрузить виджет ВК", "error");
             })
             .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
                 const code = payload.code;
@@ -733,7 +736,7 @@
                 showToast("Успешный вход!");
             } else if (urlError) {
                 window.history.replaceState({}, document.title, "/");
-                showToast(`Ошибка авторизации: ${urlParams.get('error_description') || urlError}`, "error");
+                showToast(`Ошибка авторизации: ${urlParams.get('error_description') || urlError}`.replace(/_/g, ' '), "error");
             }
 
             try { await checkAuth(); } catch (e) { console.log(e); } 

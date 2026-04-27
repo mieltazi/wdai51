@@ -320,7 +320,7 @@
       responseMode: VKID.ConfigResponseMode.Redirect // <-- Прямой редирект, никаких поп-апов
     });
 
-    const oneTap = new VKID.OneTap()
+    const oneTap = new VKID.OneTap();
     const container = document.getElementById('vk-auth-container');
     const fallbackBtn = document.getElementById('vk-fallback-btn');
     

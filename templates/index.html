@@ -343,7 +343,7 @@
                     // ВАЖНО: Вместо VKID.Auth.exchangeCode отправляем код на наш бэкенд!
                     // Бэкенд сам свяжется с ВК, создаст аккаунт в базе и вернет JWT токен.
                     const params = new URLSearchParams({ code: payload.code });
-                    window.location.href = `/api/auth/vk/callback?${params.toString()}`;
+                    window.location.href = `/api/auth/vk/callback?${params.toString()}`
                   });
                 }
               }

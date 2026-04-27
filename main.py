@@ -5,25 +5,18 @@ import httpx
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Request, HTTPException, Header
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import or_, and_
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from database import engine, Base, get_db
 from models import User, Product, Order, PrivateMessage, BlockedUser, Review
 
 SECRET_KEY = "tradeflow_super_secret"
-
-# ==========================================
-# ТВОЙ ID ПРИЛОЖЕНИЯ (ЖЕСТКО ПРОПИСАН)
-VK_CLIENT_ID = "54566173" 
-# СЕКРЕТНЫЙ КЛЮЧ БЕРЕМ ИЗ VERCEL
-VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET")
-VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback"
-# ==========================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -50,55 +43,42 @@ async def get_current_user(authorization: str = Header(None), db: AsyncSession =
     except:
         raise HTTPException(status_code=401, detail="Недействительный токен")
 
-# --- КЛАССИЧЕСКАЯ АВТОРИЗАЦИЯ ВК (РАБОТАЕТ ВСЕГДА) ---
-@app.get("/api/auth/vk")
-async def vk_login():
-    url = f"https://oauth.vk.com/authorize?client_id={VK_CLIENT_ID}&display=page&redirect_uri={VK_REDIRECT_URI}&scope=email&response_type=code&v=5.131"
-    return RedirectResponse(url)
+# --- НОВАЯ, ИДЕАЛЬНАЯ АВТОРИЗАЦИЯ VK ID ---
+class VKTokenData(BaseModel):
+    access_token: str
 
-@app.get("/api/auth/vk/callback")
-async def vk_callback(code: str = None, error: str = None, error_description: str = None, db: AsyncSession = Depends(get_db)):
-    if error:
-        return JSONResponse(status_code=400, content={"error": error, "description": error_description})
-    if not code:
-        return JSONResponse(status_code=400, content={"error": "Код от ВК не получен"})
-
-    if not VK_CLIENT_SECRET:
-        return JSONResponse(status_code=500, content={"error": "Секретный ключ VK_CLIENT_SECRET не найден в Vercel!"})
-
+@app.post("/api/auth/vk/token")
+async def vk_token_auth(data: VKTokenData, db: AsyncSession = Depends(get_db)):
+    # 1. Получаем данные пользователя из ВК по токену, который дал виджет
     async with httpx.AsyncClient() as client:
-        token_res = await client.get(f"https://oauth.vk.com/access_token?client_id={VK_CLIENT_ID}&client_secret={VK_CLIENT_SECRET}&redirect_uri={VK_REDIRECT_URI}&code={code}")
-        token_data = token_res.json()
+        user_res = await client.get(f"https://api.vk.com/method/users.get?fields=photo_100&access_token={data.access_token}&v=5.131")
+        vk_response = user_res.json()
         
-        # ЛОВИМ ОШИБКИ БЕЗОПАСНОСТИ
-        if "error" in token_data:
-            return JSONResponse(status_code=400, content={
-                "ВК_ОТВЕТИЛ_ОШИБКОЙ": token_data, 
-                "ПОДСКАЗКА": f"Убедись, что VK_CLIENT_SECRET в Vercel принадлежит приложению {VK_CLIENT_ID}"
-            })
+        if "error" in vk_response:
+            raise HTTPException(400, "Ошибка токена ВКонтакте")
+            
+        user_info = vk_response["response"][0]
+        vk_user_id = user_info["id"]
 
-        access_token = token_data.get("access_token")
-        vk_user_id = token_data.get("user_id")
-        
-        user_res = await client.get(f"https://api.vk.com/method/users.get?user_ids={vk_user_id}&fields=photo_100&access_token={access_token}&v=5.131")
-        user_info = user_res.json()["response"][0]
-
+    # 2. Ищем или создаем пользователя в нашей базе
     res = await db.execute(select(User).filter_by(vk_id=vk_user_id))
     user = res.scalar_one_or_none()
 
     if not user:
         user = User(
-            vk_id=vk_user_id, 
-            username=f"{user_info.get('first_name','')} {user_info.get('last_name','')}", 
-            avatar_url=user_info.get('photo_100'), 
+            vk_id=vk_user_id,
+            username=f"{user_info.get('first_name', '')} {user_info.get('last_name', '')}",
+            avatar_url=user_info.get('photo_100'),
             balance=5000.0
         )
         db.add(user)
         await db.commit()
         await db.refresh(user)
 
+    # 3. Создаем наш собственный токен и отдаем фронтенду
     token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
-    return RedirectResponse(url=f"/?token={token}")
+    return {"token": token}
+
 
 # --- ОСТАЛЬНЫЕ ЭНДПОИНТЫ ---
 @app.get("/api/user")

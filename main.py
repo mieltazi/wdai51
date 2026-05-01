@@ -30,11 +30,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+        # Принудительно добавляем колонки, если таблица была создана старой версией кода
         try:
             await conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS images VARCHAR DEFAULT ''"))
             await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE"))
             await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_until TIMESTAMP"))
             await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason VARCHAR"))
+            await conn.execute(text("ALTER TABLE reports ADD COLUMN IF NOT EXISTS user_id INTEGER"))
         except Exception:
             pass
     yield
@@ -132,20 +134,14 @@ async def vk_callback(request: Request, code: str = None, device_id: str = None,
             uname_check = await db.execute(select(User).filter_by(username=username_candidate))
             if uname_check.scalar_one_or_none():
                 username_candidate = f"{username_candidate}_{vk_user_id}"
-                
-            is_admin_flag = True if username_candidate.lower() == "miellssd" else False
 
-            user = User(vk_id=vk_user_id, username=username_candidate, avatar_url=avatar, balance=5000.0, is_admin=is_admin_flag)
+            user = User(vk_id=vk_user_id, username=username_candidate, avatar_url=avatar, balance=5000.0)
             db.add(user)
             await db.commit()
             tx = Transaction(user_id=user.id, type="topup", amount=5000.0, description="🎁 Приветственный бонус TradeFlow")
             db.add(tx)
             await db.commit()
             await db.refresh(user)
-        else:
-            if user.username == "miellssd" and not user.is_admin:
-                user.is_admin = True
-                await db.commit()
 
         if user.banned_until and (user.banned_until > datetime.utcnow() or user.banned_until.year >= 9999):
             return RedirectResponse(url="/?error=Ваш_аккаунт_заблокирован")
@@ -194,7 +190,11 @@ async def upload_image(data: ImageUploadRequest):
         raise HTTPException(status_code=500, detail=f"Сбой загрузки: {str(e)}")
 
 @app.get("/api/user")
-async def get_user(user: User = Depends(get_current_user)):
+async def get_user(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # ВАЖНО: Выдаем админку первому зарегистрированному пользователю (ID = 1) ИЛИ если ник miellssd
+    if not user.is_admin and (user.id == 1 or user.username.lower() == "miellssd"):
+        user.is_admin = True
+        await db.commit()
     return {"username": user.username, "balance": user.balance, "avatar_url": user.avatar_url, "id": user.id, "is_admin": user.is_admin}
 
 class UpdateProfileRequest(BaseModel):
@@ -210,7 +210,7 @@ async def update_profile(data: UpdateProfileRequest, user: User = Depends(get_cu
         if uname_check.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Этот никнейм уже занят")
         if data.username.lower() == "miellssd" and not user.is_admin:
-            raise HTTPException(status_code=400, detail="Этот никнейм зарезервирован")
+            user.is_admin = True # Выдаем админку, если он занял этот ник
     user.username = data.username
     user.avatar_url = data.avatar_url
     await db.commit()
@@ -295,7 +295,7 @@ async def get_user_profile(username: str, db: AsyncSession = Depends(get_db)):
         
     return {
         "username": u.username, "avatar_url": u.avatar_url, "id": u.id,
-        "products":[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "images": [img for img in p.images.split(',') if img] if p.images else[]} for p in products],
+        "products":[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "images":[img for img in p.images.split(',') if img] if p.images else[]} for p in products],
         "reviews": reviews
     }
 

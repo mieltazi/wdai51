@@ -137,7 +137,7 @@ async def vk_callback(request: Request, code: str = None, device_id: str = None,
 
 @app.post("/api/upload_image")
 async def upload_image(data: ImageUploadRequest):
-    # Проверка: если Vercel не увидел ключи, выдаем понятную ошибку
+    # Проверка: если Vercel не увидел ключи
     if not SUPABASE_URL or not SUPABASE_KEY:
         raise HTTPException(status_code=500, detail="Ключи Supabase не настроены в Vercel")
         
@@ -148,7 +148,7 @@ async def upload_image(data: ImageUploadRequest):
         
         # Генерируем уникальное имя файла
         filename = f"{uuid.uuid4().hex}.jpg"
-        bucket_name = "tradeflow" # Убедитесь, что корзина в Supabase называется именно так!
+        bucket_name = "tradeflow" # Корзина должна называться именно так!
         
         # Ссылка для загрузки в Supabase Storage
         upload_url = f"{SUPABASE_URL}/storage/v1/object/{bucket_name}/{filename}"
@@ -159,6 +159,7 @@ async def upload_image(data: ImageUploadRequest):
                 content=image_bytes,
                 headers={
                     "Authorization": f"Bearer {SUPABASE_KEY}",
+                    "apikey": SUPABASE_KEY,  # <--- ДОБАВИЛИ ЭТУ СТРОКУ
                     "Content-Type": "image/jpeg"
                 },
                 timeout=15.0

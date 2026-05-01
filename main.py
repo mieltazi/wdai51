@@ -125,17 +125,41 @@ async def vk_callback(request: Request, code: str = None, device_id: str = None,
 
 @app.post("/api/upload_image")
 async def upload_image(data: ImageUploadRequest):
-    base64_data = data.image_base64
-    if "," in base64_data: base64_data = base64_data.split(",")[1]
-    image_bytes = base64.b64decode(base64_data)
-    
-    async with httpx.AsyncClient() as client:
-        files = {'file': ('image.jpg', image_bytes, 'image/jpeg')}
-        res = await client.post('https://telegra.ph/upload', files=files)
-        res_data = res.json()
-        if isinstance(res_data, list) and "src" in res_data[0]:
-            return {"url": "https://telegra.ph" + res_data[0]["src"]}
-        raise HTTPException(status_code=400, detail="Ошибка загрузки изображения")
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        raise HTTPException(status_code=500, detail="Ключи Supabase не настроены в Vercel")
+        
+    try:
+        base64_data = data.image_base64
+        if "," in base64_data: base64_data = base64_data.split(",")[1]
+        image_bytes = base64.b64decode(base64_data)
+        
+        # Генерируем уникальное имя файла
+        filename = f"{uuid.uuid4().hex}.jpg"
+        bucket_name = "tradeflow"
+        
+        # Ссылка для загрузки в Supabase Storage
+        upload_url = f"{SUPABASE_URL}/storage/v1/object/{bucket_name}/{filename}"
+        
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                upload_url,
+                content=image_bytes,
+                headers={
+                    "Authorization": f"Bearer {SUPABASE_KEY}",
+                    "Content-Type": "image/jpeg"
+                },
+                timeout=15.0
+            )
+            
+            if res.status_code in (200, 201):
+                # Формируем публичную ссылку на картинку
+                public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{filename}"
+                return {"url": public_url}
+            else:
+                raise HTTPException(status_code=400, detail=f"Ошибка Supabase: {res.text}")
+                
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Сбой загрузки: {str(e)}")
 
 @app.get("/api/user")
 async def get_user(user: User = Depends(get_current_user)):

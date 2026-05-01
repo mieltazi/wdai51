@@ -676,18 +676,41 @@
             });
         }
         
+// НОВАЯ ЛОГИКА РАБОТЫ С ФОТОГРАФИЯМИ
         function previewImages() {
             const input = document.getElementById('sell-images');
+            let newFiles = Array.from(input.files);
+            
+            // Добавляем новые файлы к уже выбранным (максимум 8)
+            selectedFiles =[...selectedFiles, ...newFiles].slice(0, 8);
+            
+            // Очищаем input, чтобы можно было загрузить ту же картинку еще раз, если потребуется
+            input.value = ''; 
+            
+            renderImagePreviews();
+        }
+
+        // Функция удаления фото по клику на корзину
+        function removeImage(index) {
+            selectedFiles.splice(index, 1); // Удаляем файл из массива
+            renderImagePreviews(); // Перерисовываем список
+        }
+
+        // Функция отрисовки картинок с кнопкой удаления
+        function renderImagePreviews() {
             const container = document.getElementById('image-preview-container');
             container.innerHTML = '';
-            selectedFiles = Array.from(input.files).slice(0, 8);
             
-            selectedFiles.forEach(file => {
+            selectedFiles.forEach((file, index) => {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     container.innerHTML += `
-                        <div class="w-20 h-20 rounded-xl overflow-hidden border border-white/10 relative shadow-lg">
+                        <div class="w-20 h-20 rounded-xl overflow-hidden border border-white/10 relative shadow-lg group">
                             <img src="${e.target.result}" class="w-full h-full object-cover">
+                            <!-- Красное затемнение и кнопка удаления при наведении -->
+                            <button type="button" onclick="removeImage(${index})" class="absolute inset-0 bg-red-500/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                <i class='bx bx-trash text-white text-2xl'></i>
+                            </button>
                         </div>`;
                 }
                 reader.readAsDataURL(file);

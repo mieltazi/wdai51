@@ -4,13 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TradeFlow | Игровой Маркетплейс</title>
+    <!-- Главная иконка -->
+    <link rel="icon" href="/static/images/icon.png" type="image/png">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href='https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-    <script src="https://unpkg.com/@vkid/sdk@3.0.0/dist-sdk/umd/index.js"></script>
 
     <style>
         /* БАЗОВАЯ ТЕМА (ТЕМНАЯ) */
@@ -86,16 +88,16 @@
             <h1 class="text-2xl font-bold tracking-tight text-white hidden sm:block">Trade<span class="text-indigo-400">Flow</span></h1>
         </div>
         
-        <nav class="hidden md:flex gap-1 lg:gap-2 font-medium text-sm">
+        <nav class="hidden md:flex gap-1 lg:gap-2 font-medium text-sm" id="main-nav">
             <button onclick="showPage('market')" id="nav-market" class="nav-item active"><i class='bx bx-grid-alt mr-1'></i> Маркет</button>
             <button onclick="showPage('sell')" id="nav-sell" class="nav-item"><i class='bx bx-plus-circle mr-1'></i> Продать</button>
             <button onclick="showPage('purchases')" id="nav-purchases" class="nav-item"><i class='bx bx-shopping-bag mr-1'></i> Покупки</button>
             <button onclick="showPage('messages')" id="nav-messages" class="nav-item"><i class='bx bx-message-square-dots mr-1'></i> Чат</button>
             <button onclick="showPage('finances')" id="nav-finances" class="nav-item"><i class='bx bx-wallet mr-1'></i> Финансы</button>
+            <button onclick="showPage('support')" id="nav-support" class="nav-item"><i class='bx bx-support mr-1'></i> Поддержка</button>
         </nav>
 
         <div class="flex items-center gap-4">
-            <!-- ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ -->
             <div class="relative flex items-center justify-between w-14 h-7 bg-white/10 rounded-full cursor-pointer border border-white/5 transition-colors px-1" id="theme-toggle" onclick="toggleTheme()">
                 <i class='bx bx-moon text-xs text-indigo-300 z-10'></i>
                 <i class='bx bx-sun text-xs text-yellow-500 z-10'></i>
@@ -170,14 +172,17 @@
                     <h3 class="text-lg font-bold text-white mb-4">Описание товара</h3>
                     <div class="bg-[#0a0a0c] rounded-2xl p-6 text-gray-300 whitespace-pre-wrap leading-relaxed border border-white/5 mb-8" id="prod-desc"></div>
 
-                    <div class="flex items-center justify-between pt-6 border-t border-white/10">
+                    <div class="flex items-center justify-between pt-6 border-t border-white/10 relative">
                         <div>
                             <p class="text-sm text-gray-400 mb-1">Стоимость</p>
                             <p class="text-4xl font-black text-white" id="prod-price">0 ₽</p>
                         </div>
-                        <button id="prod-buy-btn" class="bg-indigo-600 hover:bg-indigo-500 px-10 py-4 rounded-2xl text-white font-bold text-lg transition shadow-md flex items-center gap-2">
-                            <i class='bx bx-cart-add text-2xl'></i> Купить
-                        </button>
+                        <div class="flex flex-col items-end">
+                            <button id="prod-buy-btn" class="bg-indigo-600 hover:bg-indigo-500 px-10 py-4 rounded-2xl text-white font-bold text-lg transition shadow-md flex items-center gap-2">
+                                <i class='bx bx-cart-add text-2xl'></i> Купить
+                            </button>
+                            <!-- Кнопка удаления для админа добавляется из JS -->
+                        </div>
                     </div>
                 </div>
 
@@ -203,7 +208,7 @@
             </div>
         </section>
 
-        <!-- ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ И ОТЗЫВЫ -->
+        <!-- ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ -->
         <section id="page-profile" class="page-section max-w-5xl mx-auto">
             <div class="glass-panel p-10 rounded-3xl border border-white/5 flex flex-col md:flex-row items-center md:items-start gap-8 mb-10 relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-indigo-600/20 to-purple-600/20"></div>
@@ -232,10 +237,9 @@
             <div id="profile-reviews" class="flex flex-col gap-4"></div>
         </section>
 
-        <!-- ПОЛНОЦЕННЫЙ ЧАТ (ОБНОВЛЕННЫЙ) -->
+        <!-- ЧАТ -->
         <section id="page-messages" class="page-section max-w-5xl mx-auto h-[600px]">
             <div class="glass-panel rounded-3xl border border-white/5 flex h-full overflow-hidden shadow-md">
-                <!-- Список диалогов (левая панель) -->
                 <div class="w-1/3 sm:w-1/4 border-r border-white/5 flex flex-col bg-black/10">
                     <div class="p-4 sm:p-5 border-b border-white/5 bg-white/5">
                         <h3 class="font-bold text-white text-base sm:text-lg flex items-center gap-2"><i class='bx bx-message-square-dots text-indigo-500'></i> Чат</h3>
@@ -245,7 +249,6 @@
                     </div>
                 </div>
                 
-                <!-- Окно чата (правая панель) -->
                 <div class="flex-1 flex flex-col relative bg-black/20">
                     <div id="chat-header" class="p-4 sm:p-5 border-b border-white/5 bg-white/5 hidden justify-between items-center">
                         <h3 class="font-bold text-white flex items-center gap-2" id="chat-active-user"><i class='bx bx-user-circle text-gray-400 text-xl'></i> Username</h3>
@@ -269,23 +272,91 @@
             </div>
         </section>
 
+        <!-- ПОДДЕРЖКА -->
+        <section id="page-support" class="page-section max-w-3xl mx-auto">
+            <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-2"><i class='bx bx-support text-indigo-500'></i> Поддержка</h2>
+            <div class="glass-panel rounded-3xl p-8 border border-white/5 shadow-md relative overflow-hidden">
+                <form onsubmit="submitReport(event)" class="flex flex-col gap-5 relative z-10">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-2">Категория проблемы</label>
+                        <select id="report-category" class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition">
+                            <option value="Обман/Мошенничество">Обман/Мошенничество</option>
+                            <option value="Проблема с заказом">Проблема с заказом</option>
+                            <option value="Неадекватное поведение">Неадекватное поведение</option>
+                            <option value="Баг/Техническая проблема">Баг/Техническая проблема</option>
+                            <option value="Другое">Другое</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-2">Объект жалобы</label>
+                            <select id="report-target-type" class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition">
+                                <option value="user">Пользователь</option>
+                                <option value="product">Товар</option>
+                                <option value="order">Заказ</option>
+                                <option value="other">Другое</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-400 mb-2">ID / Никнейм / Номер заказа</label>
+                            <input type="text" id="report-target-id" placeholder="Например: miellssd или ORD-123" class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-400 mb-2">Опишите проблему подробно</label>
+                        <textarea id="report-desc" required placeholder="Здравствуйте, у меня произошла проблема..." class="w-full bg-[#0a0a0c] border border-white/10 rounded-xl p-3.5 text-white outline-none focus:border-indigo-500 transition h-32 resize-none"></textarea>
+                    </div>
+                    <button type="submit" id="report-submit-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl transition mt-2 shadow-md">Отправить жалобу</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- АДМИН ПАНЕЛЬ -->
+        <section id="page-admin" class="page-section max-w-6xl mx-auto">
+            <h2 class="text-3xl font-black text-white mb-8 flex items-center gap-2"><i class='bx bx-shield-quarter text-orange-500'></i> Панель Администратора</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Управление пользователями -->
+                <div class="glass-panel p-6 rounded-3xl border border-white/5">
+                    <h3 class="font-bold text-white mb-4 text-lg">Заблокировать пользователя</h3>
+                    <div class="flex flex-col gap-3">
+                        <input type="text" id="admin-ban-username" placeholder="Никнейм пользователя" class="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-2 text-sm text-white outline-none">
+                        <input type="text" id="admin-ban-reason" placeholder="Причина бана" class="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-2 text-sm text-white outline-none">
+                        <select id="admin-ban-duration" class="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-2 text-sm text-white outline-none">
+                            <option value="1">1 день</option>
+                            <option value="7">7 дней</option>
+                            <option value="30">30 дней</option>
+                            <option value="-1">Навсегда</option>
+                        </select>
+                        <button onclick="adminBanUser()" class="bg-red-600 hover:bg-red-500 text-white py-2 rounded-xl font-bold transition mt-2">Забанить</button>
+                    </div>
+                </div>
+
+                <!-- Список жалоб -->
+                <div class="lg:col-span-2 glass-panel p-6 rounded-3xl border border-white/5 flex flex-col h-[500px]">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-white text-lg">Активные жалобы</h3>
+                        <button onclick="loadAdminReports()" class="text-indigo-400 hover:text-white text-sm"><i class='bx bx-refresh'></i> Обновить</button>
+                    </div>
+                    <div id="admin-reports-list" class="flex-1 overflow-y-auto pr-2 flex flex-col gap-3">
+                        <div class="text-gray-500 text-center py-10">Загрузка...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- ФИНАНСЫ -->
         <section id="page-finances" class="page-section max-w-4xl mx-auto">
             <div class="glass-panel p-8 sm:p-12 rounded-3xl border border-white/5 mb-8 relative overflow-hidden shadow-md">
                 <div class="flex flex-col sm:flex-row justify-between items-center gap-6 relative z-10">
                     <div>
                         <h2 class="text-3xl font-bold text-white flex items-center gap-3 mb-2"><i class='bx bx-wallet text-green-400'></i> Мой кошелек</h2>
-                        <p class="text-gray-400">Управляйте своими средствами и историей операций</p>
+                        <p class="text-gray-400">Управляйте своими средствами и историями операций</p>
                     </div>
                     <div class="text-center sm:text-right bg-white/5 px-8 py-4 rounded-2xl border border-white/10">
                         <p class="text-sm text-gray-400 mb-1 font-medium">Текущий баланс</p>
                         <p class="text-4xl font-black text-green-400 tracking-tight" id="finances-page-balance">0 ₽</p>
                     </div>
-                </div>
-                
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8 relative z-10">
-                    <button onclick="showToast('Временно недоступно', 'error')" class="bg-green-600 hover:bg-green-500 text-white py-4 rounded-2xl font-bold transition flex items-center justify-center gap-2 shadow-sm text-lg"><i class='bx bx-plus-circle text-2xl'></i> Пополнить</button>
-                    <button onclick="showToast('Временно недоступно', 'error')" class="bg-white/5 hover:bg-white/10 text-white py-4 rounded-2xl font-bold transition flex items-center justify-center gap-2 border border-white/10 text-lg"><i class='bx bx-minus-circle text-2xl'></i> Вывести</button>
                 </div>
             </div>
 
@@ -372,10 +443,56 @@
             <button onclick="closeAuth()" class="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition"><i class='bx bx-x text-xl'></i></button>
             <h3 class="text-2xl font-black text-white mb-2">Вход в TradeFlow</h3>
             <p class="text-gray-400 text-sm mb-6">Для безопасных покупок и продаж</p>
-            <a href="/api/auth/vk" id="vk-fallback-btn" class="mt-2 w-full bg-[#0077FF] hover:bg-[#0066CC] text-white py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg">
+            <a href="/api/auth/vk" class="mt-2 w-full bg-[#0077FF] hover:bg-[#0066CC] text-white py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg">
                 <i class='bx bxl-vk text-xl'></i> Войти через ВКонтакте
             </a>
         </div>
+    </div>
+
+    <!-- МОДАЛКА РЕДАКТИРОВАНИЯ ПРОФИЛЯ -->
+    <div id="edit-profile-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity">
+        <div class="glass-panel border border-white/10 rounded-[2rem] p-8 max-w-md w-full mx-4 relative shadow-2xl animate-[fadeUp_0.3s_ease]">
+            <button onclick="closeEditProfile()" class="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition"><i class='bx bx-x text-xl'></i></button>
+            <h3 class="text-2xl font-black text-white mb-6">Редактировать профиль</h3>
+            
+            <div class="flex flex-col gap-5">
+                <div class="flex items-center gap-4">
+                    <div id="edit-avatar-preview" class="w-16 h-16 rounded-full bg-indigo-500/50 flex items-center justify-center overflow-hidden shrink-0 border border-white/10"></div>
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-gray-400 mb-1">Аватар</label>
+                        <input type="file" id="edit-avatar-file" accept="image/*" class="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-white/5 file:text-white hover:file:bg-white/10 cursor-pointer w-full mb-2" onchange="previewEditAvatar()">
+                        <input type="text" id="edit-avatar-url" placeholder="Или вставьте ссылку..." class="w-full bg-[#111] border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-indigo-500 transition" oninput="updateEditAvatarPreview()">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Никнейм</label>
+                    <input type="text" id="edit-username" class="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500 transition">
+                </div>
+
+                <button onclick="saveProfile()" id="save-profile-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg mt-2">
+                    Сохранить изменения
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН БЛОКИРОВКИ -->
+    <div id="banned-screen" class="fixed inset-0 z-[200] hidden flex-col items-center justify-center bg-[#070709] text-white p-6">
+        <i class='bx bx-block text-6xl text-red-500 mb-4'></i>
+        <h1 class="text-3xl font-black mb-2 text-center">Ваш аккаунт заблокирован</h1>
+        <p class="text-gray-400 mb-6 text-center">Доступ к платформе ограничен администрацией.</p>
+        <div class="bg-white/5 border border-red-500/30 p-6 rounded-2xl max-w-md w-full">
+            <div class="flex justify-between mb-3 border-b border-white/10 pb-2">
+                <span class="text-gray-400">Причина:</span>
+                <span class="font-bold text-red-400 text-right" id="ban-reason-text">...</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-400">Разблокировка:</span>
+                <span class="font-bold text-white text-right" id="ban-date-text">...</span>
+            </div>
+        </div>
+        <button onclick="logout()" class="mt-8 bg-white/10 hover:bg-white/20 px-6 py-2 rounded-xl transition">Выйти из аккаунта</button>
     </div>
 
     <script>
@@ -399,13 +516,13 @@
 
         let currentCategory = 'All', currentSubcategory = 'Все', currentSearch = '';
         let token = localStorage.getItem('tf_token');
+        let currentUser = null;
         let currentChatUser = null;
         let chatInterval = null;
         let activeProduct = null;
         let myUserId = null;
         let selectedFiles =[];
 
-        // --- ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ ---
         function toggleTheme() {
             document.body.classList.toggle('light-theme');
             const isLight = document.body.classList.contains('light-theme');
@@ -428,16 +545,33 @@
             if(body) headers['Content-Type'] = 'application/json';
             
             let res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : null });
-            if(res.status === 401) { logout(); throw new Error("Требуется авторизация"); }
-            
             let isJson = res.headers.get('content-type')?.includes('application/json');
+            
             if(!res.ok) {
                 let errorMsg = "Ошибка сервера";
-                if(isJson) { let data = await res.json(); errorMsg = data.detail || errorMsg; } 
-                else { let text = await res.text(); errorMsg = text.substring(0, 50) || errorMsg; }
+                if(isJson) { 
+                    let data = await res.json(); 
+                    errorMsg = data.detail || errorMsg; 
+                    if(res.status === 403 && typeof errorMsg === 'string' && errorMsg.startsWith('BANNED|')) {
+                        let parts = errorMsg.split('|');
+                        showBannedScreen(parts[1], parts[2]);
+                        throw new Error("Аккаунт заблокирован");
+                    }
+                } else { 
+                    let text = await res.text(); 
+                    errorMsg = text.substring(0, 50) || errorMsg; 
+                }
+                if(res.status === 401) { logout(); throw new Error("Требуется авторизация"); }
                 throw new Error(errorMsg);
             }
             return isJson ? await res.json() : {};
+        }
+
+        function showBannedScreen(reason, date) {
+            document.getElementById('ban-reason-text').innerText = reason;
+            document.getElementById('ban-date-text').innerText = date;
+            document.getElementById('banned-screen').classList.remove('hidden');
+            document.getElementById('banned-screen').classList.add('flex');
         }
 
         function showToast(msg, type = 'success') {
@@ -452,7 +586,7 @@
         }
 
         function showPage(pageId) {
-            if(!token &&['sell', 'purchases', 'messages', 'product', 'profile', 'finances'].includes(pageId)) {
+            if(!token &&['sell', 'purchases', 'messages', 'product', 'profile', 'finances', 'support', 'admin'].includes(pageId)) {
                 openAuthModal(); return;
             }
             document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
@@ -469,6 +603,7 @@
             if(pageId === 'market') { renderSliders(); renderCategories(); loadRandomProducts(); }
             if(pageId === 'purchases') loadPurchases();
             if(pageId === 'finances') loadFinances();
+            if(pageId === 'admin') loadAdminReports();
             if(pageId === 'messages') { loadChatsList(); if(currentChatUser) loadPrivateChat(); chatInterval = setInterval(loadPrivateChat, 3000); }
         }
 
@@ -509,14 +644,27 @@
         }
 
         function createProductCardHTML(p) {
-            let imgUrl = (p.images && p.images.length > 0) ? p.images[0] : 'https://images.unsplash.com/photo-1605901309584-818e25960b8f?q=80&w=400&auto=format&fit=crop';
+            let hasImage = p.images && p.images.length > 0;
+            let imgHtml = '';
+            
+            if (hasImage) {
+                imgHtml = `<img src="${p.images[0]}" alt="Game">`;
+            } else {
+                let catData = CATEGORIES[p.category] || CATEGORIES["Разное 📦"];
+                imgHtml = `<div class="w-full h-full flex items-center justify-center bg-gradient-to-br ${catData.color}"><i class='bx ${catData.icon} text-6xl text-white/50'></i></div>`;
+            }
+
+            let sellerName = p.seller || "Неизвестно";
+            let subcatName = p.subcategory || "Разное";
+            let titleName = p.title || "Без названия";
+
             let wBadge = p.warranty ? `<div class="absolute top-2 right-2 bg-green-500/90 text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 z-10"><i class='bx bx-shield-check'></i> Гарантия</div>` : '';
             return `
                 <div onclick='openProduct(${JSON.stringify(p).replace(/'/g, "&#39;")})' class="product-card glass-panel rounded-2xl flex flex-col overflow-hidden">
-                    <div class="product-image-wrapper relative">${wBadge}<img src="${imgUrl}" alt="Game"><div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent text-xs text-indigo-300 font-bold uppercase tracking-wider">${p.subcategory}</div></div>
+                    <div class="product-image-wrapper relative">${wBadge}${imgHtml}<div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent text-xs text-indigo-300 font-bold uppercase tracking-wider">${subcatName}</div></div>
                     <div class="p-5 flex flex-col justify-between flex-1 bg-white/5">
-                        <h3 class="text-sm font-bold text-white leading-tight line-clamp-2 mb-2">${p.title}</h3>
-                        <div class="flex items-center gap-1 text-xs text-gray-400 mb-3"><i class='bx bx-user-circle'></i> ${p.seller}</div>
+                        <h3 class="text-sm font-bold text-white leading-tight line-clamp-2 mb-2">${titleName}</h3>
+                        <div class="flex items-center gap-1 text-xs text-gray-400 mb-3"><i class='bx bx-user-circle'></i> ${sellerName}</div>
                         <p class="text-2xl font-black text-white">${p.price.toLocaleString()} ₽</p>
                     </div>
                 </div>`;
@@ -565,17 +713,34 @@
             document.getElementById('prod-desc').innerText = p.description || "Описания нет";
             document.getElementById('prod-price').innerText = p.price.toLocaleString() + " ₽";
             document.getElementById('prod-warranty').classList.toggle('hidden', !p.warranty);
-            document.getElementById('prod-seller-name').innerText = p.seller;
+            document.getElementById('prod-seller-name').innerText = p.seller || "Неизвестно";
             document.getElementById('prod-buy-btn').onclick = () => buyProduct(p.id);
+            
+            let adminDelBtn = document.getElementById('admin-del-prod-btn');
+            if(currentUser && currentUser.is_admin) {
+                if(!adminDelBtn) {
+                    document.getElementById('prod-buy-btn').parentElement.insertAdjacentHTML('beforeend', `<button id="admin-del-prod-btn" onclick="adminDeleteProduct(${p.id})" class="mt-4 bg-red-600/20 text-red-500 hover:bg-red-600/40 w-full py-2 rounded-xl text-sm font-bold transition border border-red-500/20"><i class='bx bx-trash'></i> Удалить (Админ)</button>`);
+                } else {
+                    adminDelBtn.onclick = () => adminDeleteProduct(p.id);
+                    adminDelBtn.classList.remove('hidden');
+                }
+            } else if(adminDelBtn) {
+                adminDelBtn.classList.add('hidden');
+            }
             
             const imgContainer = document.getElementById('prod-image-container');
             const imgWrapper = document.getElementById('prod-images');
+            
+            imgContainer.classList.remove('hidden');
+            imgWrapper.innerHTML = '';
+            
             if(p.images && p.images.length > 0) {
-                imgContainer.classList.remove('hidden');
-                imgWrapper.innerHTML = '';
                 p.images.forEach(img => { imgWrapper.innerHTML += `<div class="swiper-slide"><img src="${img}" class="w-full h-full object-cover rounded-2xl"></div>`; });
                 new Swiper(".productSwiper", { pagination: { el: ".swiper-pagination" }});
-            } else { imgContainer.classList.add('hidden'); }
+            } else {
+                let catData = CATEGORIES[p.category] || CATEGORIES["Разное 📦"];
+                imgWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center bg-gradient-to-br ${catData.color} rounded-2xl"><i class='bx ${catData.icon} text-9xl text-white/50'></i></div>`;
+            }
             showPage('product');
         }
 
@@ -595,7 +760,10 @@
                 
                 let actionsBox = document.getElementById('profile-actions');
                 if(myUserId === data.id) {
-                    actionsBox.innerHTML = `<button onclick="logout()" class="w-full md:w-auto bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-6 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class='bx bx-log-out text-xl'></i> Выйти</button>`;
+                    actionsBox.innerHTML = `
+                        <button onclick="openEditProfile()" class="w-full md:w-auto bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 border border-indigo-500/20 px-6 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-sm mb-2"><i class='bx bx-edit text-xl'></i> Редактировать</button>
+                        <button onclick="logout()" class="w-full md:w-auto bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-6 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class='bx bx-log-out text-xl'></i> Выйти</button>
+                    `;
                 } else {
                     actionsBox.innerHTML = `<button onclick="showPage('messages'); currentChatUser='${username}'; loadPrivateChat();" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class='bx bx-message-dots text-xl'></i> Написать в чат</button>`;
                 }
@@ -612,6 +780,62 @@
                 });
                 showPage('profile');
             } catch(e) { showToast(e.message, 'error'); }
+        }
+
+        function openEditProfile() {
+            document.getElementById('edit-username').value = document.getElementById('ui-username').innerText;
+            let currentAvatar = document.getElementById('avatar-container').querySelector('img')?.src || '';
+            document.getElementById('edit-avatar-url').value = currentAvatar;
+            updateEditAvatarPreview();
+            document.getElementById('edit-profile-modal').classList.remove('hidden');
+        }
+
+        function closeEditProfile() {
+            document.getElementById('edit-profile-modal').classList.add('hidden');
+        }
+
+        function updateEditAvatarPreview() {
+            let url = document.getElementById('edit-avatar-url').value;
+            let preview = document.getElementById('edit-avatar-preview');
+            if(url) preview.innerHTML = `<img src="${url}" class="w-full h-full object-cover">`;
+            else preview.innerHTML = `<i class='bx bx-user text-2xl text-white'></i>`;
+        }
+
+        async function previewEditAvatar() {
+            const file = document.getElementById('edit-avatar-file').files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('edit-avatar-url').value = e.target.result;
+                updateEditAvatarPreview();
+            }
+            reader.readAsDataURL(file);
+        }
+
+        async function saveProfile() {
+            const btn = document.getElementById('save-profile-btn');
+            btn.innerHTML = `<i class='bx bx-loader-alt animate-spin'></i> Сохранение...`;
+            btn.disabled = true;
+            try {
+                let avatarUrl = document.getElementById('edit-avatar-url').value;
+                let username = document.getElementById('edit-username').value;
+                
+                if (avatarUrl.startsWith('data:image')) {
+                    let res = await api('/api/upload_image', 'POST', { image_base64: avatarUrl });
+                    if(res.url) avatarUrl = res.url;
+                }
+
+                await api('/api/user', 'PUT', { username: username, avatar_url: avatarUrl });
+                showToast("Профиль обновлен");
+                closeEditProfile();
+                await checkAuth();
+                if(document.getElementById('page-profile').classList.contains('active')) openProfile(username);
+            } catch (e) {
+                showToast(e.message, 'error');
+            } finally {
+                btn.innerHTML = `Сохранить изменения`;
+                btn.disabled = false;
+            }
         }
 
         async function loadPurchases() {
@@ -640,7 +864,6 @@
             } catch(e) {}
         }
 
-        // --- ЛОГИКА ЧАТОВ (ОБНОВЛЕННАЯ) ---
         async function loadChatsList() {
             try {
                 let chats = await api('/api/chats');
@@ -669,7 +892,7 @@
             document.getElementById('chat-header').classList.add('flex');
             document.getElementById('chat-active-user').innerHTML = `<i class='bx bx-user-circle text-gray-400 text-xl'></i> ${username}`;
             document.getElementById('chat-input-area').classList.remove('hidden');
-            loadChatsList(); // Обновляем выделение слева
+            loadChatsList();
             loadPrivateChat();
         }
 
@@ -756,37 +979,117 @@
                 await api('/api/sell', 'POST', data);
                 showToast("Товар опубликован!"); 
                 document.getElementById('sell-form').reset();
-selectedFiles =[];
-                renderImagePreviews(); // Очищаем превью картинок
-                openCategoryView(data.category); // Перекидываем в категорию товара
+                selectedFiles =[];
+                renderImagePreviews();
+                openCategoryView(data.category);
             } catch(e) { 
                 showToast(e.message, 'error'); 
             } finally {
-                // Возвращаем кнопку в исходное состояние
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             }
+        }
+
+        async function submitReport(e) {
+            e.preventDefault();
+            const btn = document.getElementById('report-submit-btn');
+            btn.innerHTML = `<i class='bx bx-loader-alt animate-spin'></i> Отправка...`;
+            btn.disabled = true;
+            try {
+                let data = {
+                    category: document.getElementById('report-category').value,
+                    target_type: document.getElementById('report-target-type').value,
+                    target_id: document.getElementById('report-target-id').value,
+                    description: document.getElementById('report-desc').value
+                };
+                await api('/api/reports', 'POST', data);
+                showToast("Жалоба успешно отправлена! Ожидайте ответа.");
+                e.target.reset();
+            } catch(err) {
+                showToast(err.message, 'error');
+            } finally {
+                btn.innerHTML = "Отправить жалобу";
+                btn.disabled = false;
+            }
+        }
+
+        async function loadAdminReports() {
+            try {
+                let reports = await api('/api/admin/reports');
+                let list = document.getElementById('admin-reports-list');
+                list.innerHTML = '';
+                reports = reports.filter(r => r.status === 'open');
+                if(reports.length === 0) { list.innerHTML = '<div class="text-gray-500 text-center py-10">Нет активных жалоб</div>'; return; }
+                
+                reports.forEach(r => {
+                    list.innerHTML += `
+                        <div class="bg-white/5 border border-white/10 p-4 rounded-xl relative">
+                            <button onclick="adminResolveReport(${r.id})" class="absolute top-4 right-4 text-green-400 hover:text-green-300 text-sm flex items-center gap-1"><i class='bx bx-check'></i> Решено</button>
+                            <div class="text-xs text-gray-400 mb-1">${r.date} | От: <b class="text-white cursor-pointer" onclick="openProfile('${r.author}')">${r.author}</b></div>
+                            <div class="font-bold text-white mb-2">${r.category} <span class="text-indigo-400 text-sm font-normal">(${r.target_type}: ${r.target_id || '-'})</span></div>
+                            <div class="text-sm text-gray-300 bg-[#0a0a0c] p-3 rounded-lg">${r.description}</div>
+                        </div>
+                    `;
+                });
+            } catch(e) { showToast(e.message, 'error'); }
+        }
+
+        async function adminResolveReport(id) {
+            try {
+                await api(`/api/admin/reports/${id}/resolve`, 'POST');
+                showToast("Жалоба закрыта");
+                loadAdminReports();
+            } catch(e) { showToast(e.message, 'error'); }
+        }
+
+        async function adminBanUser() {
+            let username = document.getElementById('admin-ban-username').value;
+            let reason = document.getElementById('admin-ban-reason').value || "Нарушение правил";
+            let duration = parseInt(document.getElementById('admin-ban-duration').value);
+            
+            if(!username) return showToast("Введите никнейм", "error");
+            if(!confirm(`Забанить ${username}?`)) return;
+            
+            try {
+                await api(`/api/admin/ban/${username}`, 'POST', { duration_days: duration, reason: reason });
+                showToast(`Пользователь ${username} заблокирован`);
+                document.getElementById('admin-ban-username').value = '';
+                document.getElementById('admin-ban-reason').value = '';
+            } catch(e) { showToast(e.message, 'error'); }
+        }
+
+        async function adminDeleteProduct(id) {
+            if(!confirm("Удалить это объявление навсегда?")) return;
+            try {
+                await api(`/api/admin/products/${id}`, 'DELETE');
+                showToast("Объявление удалено");
+                showPage('market');
+            } catch(e) { showToast(e.message, 'error'); }
         }
 
         async function checkAuth() {
             if(!token) return;
             try {
                 let user = await api('/api/user');
+                currentUser = user;
                 myUserId = user.id;
                 document.getElementById('auth-section').classList.add('hidden');
                 let profileSection = document.getElementById('profile-section');
                 profileSection.classList.remove('hidden');
                 
-                // Обновляем балансы везде
                 document.getElementById('ui-username').innerText = user.username;
                 document.getElementById('ui-balance').innerText = user.balance.toLocaleString('ru-RU');
                 
-                // Обновляем баланс на вкладке "Финансы"
                 let finBalance = document.getElementById('finances-page-balance');
                 if (finBalance) finBalance.innerText = user.balance.toLocaleString('ru-RU') + " ₽";
                 
                 if(user.avatar_url) {
                     document.getElementById('avatar-container').innerHTML = `<img src="${user.avatar_url}" class="w-full h-full object-cover">`;
+                }
+
+                if(user.is_admin && !document.getElementById('nav-admin')) {
+                    const nav = document.getElementById('main-nav');
+                    if(nav) nav.innerHTML += `<button onclick="showPage('admin')" id="nav-admin" class="nav-item text-orange-400 hover:text-orange-300"><i class='bx bx-shield-quarter mr-1'></i> Админ</button>`;
                 }
             } catch(e) { 
                 token = null; 

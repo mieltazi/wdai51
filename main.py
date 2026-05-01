@@ -16,17 +16,14 @@ from sqlalchemy import or_, and_, text
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from database import engine, Base, get_db
-from models import User, Product, Order, PrivateMessage, BlockedUser, Review, Transaction
+from models import User, Product, Order, PrivateMessage, BlockedUser, Review, Transaction, Report
 
 SECRET_KEY = "tradeflow_super_secret"
-
-VK_CLIENT_ID = "54566173" 
+VK_CLIENT_ID = "54566173"
 VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET")
 VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback"
-
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @asynccontextmanager
@@ -35,6 +32,9 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all, checkfirst=True)
         try:
             await conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS images VARCHAR DEFAULT ''"))
+            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE"))
+            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_until TIMESTAMP"))
+            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason VARCHAR"))
         except Exception:
             pass
     yield
@@ -45,6 +45,8 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     return JSONResponse(status_code=500, content={"detail": f"Внутренняя ошибка сервера: {str(exc)}"})
 
 async def get_current_user(authorization: str = Header(None), db: AsyncSession = Depends(get_db)):
@@ -56,8 +58,21 @@ async def get_current_user(authorization: str = Header(None), db: AsyncSession =
         result = await db.execute(select(User).filter_by(id=int(payload.get("sub"))))
         user = result.scalar_one_or_none()
         if not user: raise HTTPException(status_code=401)
+        
+        if user.banned_until:
+            if user.banned_until > datetime.utcnow() or user.banned_until.year >= 9999:
+                reason = user.ban_reason or "Нарушение правил"
+                date_str = "Навсегда" if user.banned_until.year >= 9999 else user.banned_until.strftime('%d.%m.%Y %H:%M')
+                raise HTTPException(status_code=403, detail=f"BANNED|{reason}|{date_str}")
+            else:
+                user.banned_until = None
+                user.ban_reason = None
+                await db.commit()
+                
         return user
-    except:
+    except HTTPException as he:
+        raise he
+    except Exception:
         raise HTTPException(status_code=401, detail="Недействительный токен")
 
 class ImageUploadRequest(BaseModel):
@@ -77,10 +92,10 @@ async def vk_callback(request: Request, code: str = None, device_id: str = None,
     try:
         if error: return RedirectResponse(url=f"/?error={error_description}")
         if not code: return RedirectResponse(url="/?error=ВК_не_прислал_код_подтверждения")
-            
+        
         code_verifier = request.cookies.get("vk_code_verifier")
         if not code_verifier: return RedirectResponse(url="/?error=Сессия_устарела_попробуйте_еще_раз")
-
+        
         async with httpx.AsyncClient() as client:
             token_data_req = {
                 "grant_type": "authorization_code", "client_id": VK_CLIENT_ID, "client_secret": VK_CLIENT_SECRET or "",
@@ -111,14 +126,29 @@ async def vk_callback(request: Request, code: str = None, device_id: str = None,
 
         res = await db.execute(select(User).filter_by(vk_id=vk_user_id))
         user = res.scalar_one_or_none()
+        
         if not user:
-            user = User(vk_id=vk_user_id, username=f"{first_name} {last_name}".strip() or f"User{vk_user_id}", avatar_url=avatar, balance=5000.0)
+            username_candidate = f"{first_name} {last_name}".strip() or f"User{vk_user_id}"
+            uname_check = await db.execute(select(User).filter_by(username=username_candidate))
+            if uname_check.scalar_one_or_none():
+                username_candidate = f"{username_candidate}_{vk_user_id}"
+                
+            is_admin_flag = True if username_candidate.lower() == "miellssd" else False
+
+            user = User(vk_id=vk_user_id, username=username_candidate, avatar_url=avatar, balance=5000.0, is_admin=is_admin_flag)
             db.add(user)
             await db.commit()
             tx = Transaction(user_id=user.id, type="topup", amount=5000.0, description="🎁 Приветственный бонус TradeFlow")
             db.add(tx)
             await db.commit()
             await db.refresh(user)
+        else:
+            if user.username == "miellssd" and not user.is_admin:
+                user.is_admin = True
+                await db.commit()
+
+        if user.banned_until and (user.banned_until > datetime.utcnow() or user.banned_until.year >= 9999):
+            return RedirectResponse(url="/?error=Ваш_аккаунт_заблокирован")
 
         token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
         response = RedirectResponse(url=f"/?token={token}")
@@ -131,7 +161,7 @@ async def vk_callback(request: Request, code: str = None, device_id: str = None,
 async def upload_image(data: ImageUploadRequest):
     if not SUPABASE_URL or not SUPABASE_KEY:
         raise HTTPException(status_code=500, detail="Ключи Supabase не настроены в Vercel")
-        
+    
     try:
         base64_data = data.image_base64
         if "," in base64_data: base64_data = base64_data.split(",")[1]
@@ -139,11 +169,10 @@ async def upload_image(data: ImageUploadRequest):
         
         filename = f"{uuid.uuid4().hex}.jpg"
         bucket_name = "tradeflow"
-        
-        # ИСПРАВЛЕНИЕ ОШИБКИ PGRST125: Отрезаем /rest/v1 из ссылки
+
         clean_url = SUPABASE_URL.split('/rest/v1')[0].rstrip('/')
         upload_url = f"{clean_url}/storage/v1/object/{bucket_name}/{filename}"
-        
+
         async with httpx.AsyncClient() as client:
             res = await client.post(
                 upload_url,
@@ -161,13 +190,31 @@ async def upload_image(data: ImageUploadRequest):
                 return {"url": public_url}
             else:
                 raise HTTPException(status_code=400, detail=f"Ошибка Supabase: {res.text}")
-                
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Сбой загрузки: {str(e)}")
 
 @app.get("/api/user")
 async def get_user(user: User = Depends(get_current_user)):
-    return {"username": user.username, "balance": user.balance, "avatar_url": user.avatar_url, "id": user.id}
+    return {"username": user.username, "balance": user.balance, "avatar_url": user.avatar_url, "id": user.id, "is_admin": user.is_admin}
+
+class UpdateProfileRequest(BaseModel):
+    username: str
+    avatar_url: str
+
+@app.put("/api/user")
+async def update_profile(data: UpdateProfileRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not data.username.strip():
+        raise HTTPException(status_code=400, detail="Никнейм не может быть пустым")
+    if data.username != user.username:
+        uname_check = await db.execute(select(User).filter_by(username=data.username))
+        if uname_check.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Этот никнейм уже занят")
+        if data.username.lower() == "miellssd" and not user.is_admin:
+            raise HTTPException(status_code=400, detail="Этот никнейм зарезервирован")
+    user.username = data.username
+    user.avatar_url = data.avatar_url
+    await db.commit()
+    return {"status": "success"}
 
 @app.get("/")
 async def serve_frontend(request: Request):
@@ -180,7 +227,7 @@ async def get_products(category: str = "All", subcategory: str = "Все", searc
     if subcategory and subcategory != "Все": query = query.filter(Product.subcategory == subcategory)
     if search: query = query.filter(Product.title.ilike(f"%{search}%"))
     result = await db.execute(query)
-    return[{"id": p.id, "title": p.title, "description": p.description, "price": p.price, "category": p.category, "subcategory": p.subcategory, "warranty": p.has_warranty, "seller": u, "images": p.images.split(',') if p.images else []} for p, u in result]
+    return[{"id": p.id, "title": p.title, "description": p.description, "price": p.price, "category": p.category, "subcategory": p.subcategory, "warranty": p.has_warranty, "seller": u, "images":[img for img in p.images.split(',') if img] if p.images else[]} for p, u in result]
 
 @app.post("/api/sell")
 async def add_product(data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -204,7 +251,6 @@ async def buy_product(product_id: int, user: User = Depends(get_current_user), d
     
     user.balance -= product.price
     tx_buyer = Transaction(user_id=user.id, type="spend", amount=-product.price, description=f"🛒 Покупка: {product.title}")
-    
     seller_res = await db.execute(select(User).filter_by(id=product.seller_id))
     seller = seller_res.scalar_one()
     seller.balance += product.price
@@ -242,15 +288,14 @@ async def get_user_profile(username: str, db: AsyncSession = Depends(get_db)):
     
     Buyer = aliased(User)
     rev_res = await db.execute(select(Review, Buyer.username).join(Buyer, Review.buyer_id == Buyer.id).filter(Review.seller_id == u.id))
-    
     reviews =[]
     for r, buyer_name in rev_res:
         date_str = r.timestamp.strftime("%d.%m.%Y") if r.timestamp else "Недавно"
         reviews.append({"id": r.id, "buyer": buyer_name, "text": r.text, "reply": r.seller_reply, "date": date_str})
-    
+        
     return {
         "username": u.username, "avatar_url": u.avatar_url, "id": u.id,
-        "products":[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "images":[img for img in p.images.split(',') if img] if p.images else[]} for p in products],
+        "products":[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "images": [img for img in p.images.split(',') if img] if p.images else[]} for p in products],
         "reviews": reviews
     }
 
@@ -265,7 +310,7 @@ async def post_review(data: dict, user: User = Depends(get_current_user), db: As
     else:
         review = Review(product_id=data['product_id'], buyer_id=user.id, seller_id=data['seller_id'], text=data['text'])
         db.add(review)
-        
+    
     sys_msg = PrivateMessage(sender_id=user.id, receiver_id=data['seller_id'], text=f"📢 Покупатель {action} отзыв: «{data['text']}»")
     db.add(sys_msg)
     await db.commit()
@@ -280,7 +325,6 @@ async def reply_review(review_id: int, data: dict, user: User = Depends(get_curr
     await db.commit()
     return {"status": "success"}
 
-# --- НОВЫЙ ЭНДПОИНТ: СПИСОК ДИАЛОГОВ ---
 @app.get("/api/chats")
 async def get_chats(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     query = select(PrivateMessage).filter(or_(PrivateMessage.sender_id == user.id, PrivateMessage.receiver_id == user.id)).order_by(PrivateMessage.timestamp.desc())
@@ -315,6 +359,7 @@ async def send_private_message(username: str, data: dict, user: User = Depends(g
     target_res = await db.execute(select(User).filter_by(username=username))
     target = target_res.scalar_one_or_none()
     if not target: raise HTTPException(404, "Пользователь не найден")
+    
     block_check = await db.execute(select(BlockedUser).filter_by(user_id=target.id, blocked_id=user.id))
     if block_check.scalar_one_or_none(): raise HTTPException(403, "Этот пользователь заблокировал вас")
     
@@ -332,3 +377,71 @@ async def block_user(username: str, user: User = Depends(get_current_user), db: 
     db.add(block)
     await db.commit()
     return {"status": "blocked"}
+
+# --- ADMIN & SUPPORT ENDPOINTS ---
+
+class ReportRequest(BaseModel):
+    target_type: str
+    target_id: str
+    category: str
+    description: str
+
+@app.post("/api/reports")
+async def create_report(data: ReportRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    report = Report(
+        user_id=user.id,
+        target_type=data.target_type,
+        target_id=data.target_id,
+        category=data.category,
+        description=data.description
+    )
+    db.add(report)
+    await db.commit()
+    return {"status": "success"}
+
+@app.get("/api/admin/reports")
+async def get_reports(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user.is_admin: raise HTTPException(403)
+    query = select(Report, User.username).join(User, Report.user_id == User.id).order_by(Report.timestamp.desc())
+    res = await db.execute(query)
+    return[{"id": r.id, "author": u, "target_type": r.target_type, "target_id": r.target_id, "category": r.category, "description": r.description, "status": r.status, "date": r.timestamp.strftime("%d.%m.%Y %H:%M")} for r, u in res]
+
+@app.post("/api/admin/reports/{report_id}/resolve")
+async def resolve_report(report_id: int, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user.is_admin: raise HTTPException(403)
+    res = await db.execute(select(Report).filter_by(id=report_id))
+    report = res.scalar_one_or_none()
+    if report:
+        report.status = "resolved"
+        await db.commit()
+    return {"status": "success"}
+
+class BanRequest(BaseModel):
+    duration_days: int
+    reason: str
+
+@app.post("/api/admin/ban/{username}")
+async def admin_ban_user(username: str, data: BanRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user.is_admin: raise HTTPException(403)
+    res = await db.execute(select(User).filter_by(username=username))
+    target = res.scalar_one_or_none()
+    if not target: raise HTTPException(404, "Пользователь не найден")
+    if target.is_admin: raise HTTPException(400, "Нельзя забанить администратора")
+    
+    if data.duration_days == -1:
+        target.banned_until = datetime(9999, 12, 31)
+    else:
+        target.banned_until = datetime.utcnow() + timedelta(days=data.duration_days)
+    target.ban_reason = data.reason
+    await db.commit()
+    return {"status": "success"}
+
+@app.delete("/api/admin/products/{product_id}")
+async def admin_delete_product(product_id: int, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user.is_admin: raise HTTPException(403)
+    res = await db.execute(select(Product).filter_by(id=product_id))
+    prod = res.scalar_one_or_none()
+    if prod:
+        prod.status = "deleted"
+        await db.commit()
+    return {"status": "success"}

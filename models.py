@@ -6,9 +6,12 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     vk_id = Column(Integer, unique=True, index=True)
-    username = Column(String)
+    username = Column(String, unique=True)
     avatar_url = Column(String, nullable=True)
     balance = Column(Float, default=0.0)
+    is_admin = Column(Boolean, default=False)
+    banned_until = Column(DateTime, nullable=True)
+    ban_reason = Column(String, nullable=True)
 
 class Product(Base):
     __tablename__ = "products"
@@ -58,12 +61,22 @@ class BlockedUser(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     blocked_id = Column(Integer, ForeignKey("users.id"))
 
-# НОВАЯ ТАБЛИЦА: ИСТОРИЯ ФИНАНСОВ
 class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    type = Column(String) # "topup", "withdraw", "spend", "income"
+    type = Column(String) 
     amount = Column(Float)
     description = Column(String)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+class Report(Base):
+    __tablename__ = "reports"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    target_type = Column(String) # "user", "product", "order", "other"
+    target_id = Column(String, nullable=True)
+    category = Column(String)
+    description = Column(String)
+    status = Column(String, default="open") # open, resolved
     timestamp = Column(DateTime, default=datetime.utcnow)

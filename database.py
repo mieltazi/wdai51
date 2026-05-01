@@ -4,7 +4,7 @@ from sqlalchemy.orm import declarative_base
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Если ссылка начинается с postgres://, заменяем на postgresql+asyncpg://
+# Vercel/SQLAlchemy fix for asyncpg
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 elif DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
@@ -13,8 +13,11 @@ elif DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
-    pool_pre_ping=True, # Проверка живое ли соединение
-    connect_args={"statement_cache_size": 0}
+    pool_pre_ping=True,
+    connect_args={
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0
+    }
 )
 
 AsyncSessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)

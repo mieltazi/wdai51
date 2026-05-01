@@ -9,11 +9,6 @@ class User(Base):
     username = Column(String)
     avatar_url = Column(String, nullable=True)
     balance = Column(Float, default=0.0)
-    
-    # Новые поля для администрирования
-    role = Column(String, default="user") # 'user', 'admin'
-    ban_reason = Column(String, nullable=True)
-    ban_until = Column(DateTime, nullable=True)
 
 class Product(Base):
     __tablename__ = "products"
@@ -23,7 +18,7 @@ class Product(Base):
     subcategory = Column(String, default="Разное")
     title = Column(String)
     description = Column(String, default="")
-    images = Column(String, default="") 
+    images = Column(String, default="")
     has_warranty = Column(Boolean, default=False)
     price = Column(Float)
     account_data = Column(String)
@@ -63,22 +58,12 @@ class BlockedUser(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     blocked_id = Column(Integer, ForeignKey("users.id"))
 
+# НОВАЯ ТАБЛИЦА: ИСТОРИЯ ФИНАНСОВ
 class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    type = Column(String) 
+    type = Column(String) # "topup", "withdraw", "spend", "income"
     amount = Column(Float)
     description = Column(String)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-
-# НОВАЯ ТАБЛИЦА: ТИКЕТЫ ПОДДЕРЖКИ
-class Ticket(Base):
-    __tablename__ = "tickets"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    category = Column(String)
-    text = Column(String)
-    status = Column(String, default="open") # 'open', 'closed'
-    admin_reply = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)

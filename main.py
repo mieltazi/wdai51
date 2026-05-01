@@ -29,16 +29,22 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
-        # Миграция новых колонок, если их нет
-        try:
-            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'user'"))
-            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE"))
-            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS block_reason VARCHAR"))
-            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS block_until TIMESTAMP"))
-            await conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS images VARCHAR DEFAULT ''"))
-        except Exception:
-            pass
+        # Создаем таблицы, если их нет
+        await conn.run_sync(Base.metadata.create_all)
+        
+        # Безопасное добавление колонок (если их еще нет)
+        commands = [
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'user'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS block_reason VARCHAR",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS block_until TIMESTAMP",
+            "ALTER TABLE products ADD COLUMN IF NOT EXISTS images VARCHAR DEFAULT ''"
+        ]
+        for cmd in commands:
+            try:
+                await conn.execute(text(cmd))
+            except Exception as e:
+                print(f"Migration skip: {e}")
     yield
 
 app = FastAPI(lifespan=lifespan)

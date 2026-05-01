@@ -16,7 +16,7 @@ from sqlalchemy import or_, and_, text
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from database import engine, Base, get_db
-from models import User, Product, Order, PrivateMessage, BlockedUser, Review, Transaction
+from models import User, Product, Order, PrivateMessage, BlockedUser, Review, Transaction, Ticket
 
 SECRET_KEY = "tradeflow_super_secret"
 
@@ -33,10 +33,15 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all, checkfirst=True)
-        try:
-            await conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS images VARCHAR DEFAULT ''"))
-        except Exception:
-            pass
+        # Автоматически добавляем новые колонки, если их нет
+        try: await conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS images VARCHAR DEFAULT ''"))
+        except: pass
+        try: await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'user'"))
+        except: pass
+        try: await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason VARCHAR"))
+        except: pass
+        try: await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_until TIMESTAMP"))
+        except: pass
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -45,6 +50,8 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     return JSONResponse(status_code=500, content={"detail": f"Внутренняя ошибка сервера: {str(exc)}"})
 
 async def get_current_user(authorization: str = Header(None), db: AsyncSession = Depends(get_db)):
@@ -56,8 +63,19 @@ async def get_current_user(authorization: str = Header(None), db: AsyncSession =
         result = await db.execute(select(User).filter_by(id=int(payload.get("sub"))))
         user = result.scalar_one_or_none()
         if not user: raise HTTPException(status_code=401)
+        
+        # ПРОВЕРКА НА БАН
+        if user.ban_until and user.ban_until > datetime.utcnow():
+            raise HTTPException(status_code=403, detail={
+                "banned": True, 
+                "reason": user.ban_reason or "Нарушение правил", 
+                "until": user.ban_until.strftime("%d.%m.%Y %H:%M")
+            })
+            
         return user
-    except:
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Токен истек")
+    except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Недействительный токен")
 
 class ImageUploadRequest(BaseModel):
@@ -92,33 +110,45 @@ async def vk_callback(request: Request, code: str = None, device_id: str = None,
             if "error" in token_data: return RedirectResponse(url=f"/?error=Ошибка_токена_{token_data.get('error_description', '')}")
 
             access_token = token_data.get("access_token")
-            user_res = await client.post("https://id.vk.com/oauth2/user_info", data={"client_id": VK_CLIENT_ID, "access_token": access_token}, headers={"Content-Type": "application/x-www-form-urlencoded"})
-            user_data = user_res.json()
             
-            if "user" in user_data:
-                u_info = user_data["user"]
-                vk_user_id = int(u_info.get("user_id"))
-                first_name, last_name, avatar = u_info.get("first_name", ""), u_info.get("last_name", ""), u_info.get("avatar", "")
+            # Получаем расширенные данные профиля (включая domain/screen_name)
+            old_res = await client.get(f"https://api.vk.com/method/users.get?fields=photo_100,domain,screen_name&access_token={access_token}&v=5.131")
+            old_data = old_res.json()
+            if "response" in old_data and len(old_data["response"]) > 0:
+                u_info = old_data["response"][0]
+                vk_user_id = int(u_info["id"])
+                
+                # Фикс "undefined"
+                fn = u_info.get("first_name", "").replace("undefined", "").strip()
+                ln = u_info.get("last_name", "").replace("undefined", "").strip()
+                screen_name = u_info.get("screen_name", "") or u_info.get("domain", "")
+                
+                raw_name = f"{fn} {ln}".strip()
+                username = raw_name if raw_name else f"User{vk_user_id}"
+                avatar = u_info.get("photo_100", "")
             else:
-                old_res = await client.get(f"https://api.vk.com/method/users.get?fields=photo_100&access_token={access_token}&v=5.131")
-                old_data = old_res.json()
-                if "response" in old_data and len(old_data["response"]) > 0:
-                    u_info = old_data["response"][0]
-                    vk_user_id = int(u_info["id"])
-                    first_name, last_name, avatar = u_info.get("first_name", ""), u_info.get("last_name", ""), u_info.get("photo_100", "")
-                else:
-                    return RedirectResponse(url="/?error=Не_удалось_получить_профиль")
+                return RedirectResponse(url="/?error=Не_удалось_получить_профиль")
 
         res = await db.execute(select(User).filter_by(vk_id=vk_user_id))
         user = res.scalar_one_or_none()
+        
+        # Назначаем права админа для miellssd
+        is_admin = (screen_name.lower() == "miellssd" or username.lower() == "miellssd")
+        role = "admin" if is_admin else "user"
+
         if not user:
-            user = User(vk_id=vk_user_id, username=f"{first_name} {last_name}".strip() or f"User{vk_user_id}", avatar_url=avatar, balance=5000.0)
+            user = User(vk_id=vk_user_id, username=username, avatar_url=avatar, balance=5000.0, role=role)
             db.add(user)
             await db.commit()
             tx = Transaction(user_id=user.id, type="topup", amount=5000.0, description="🎁 Приветственный бонус TradeFlow")
             db.add(tx)
             await db.commit()
             await db.refresh(user)
+        else:
+            # Обновляем роль, если он вдруг стал админом
+            if is_admin and user.role != "admin":
+                user.role = "admin"
+                await db.commit()
 
         token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
         response = RedirectResponse(url=f"/?token={token}")
@@ -131,7 +161,6 @@ async def vk_callback(request: Request, code: str = None, device_id: str = None,
 async def upload_image(data: ImageUploadRequest):
     if not SUPABASE_URL or not SUPABASE_KEY:
         raise HTTPException(status_code=500, detail="Ключи Supabase не настроены в Vercel")
-        
     try:
         base64_data = data.image_base64
         if "," in base64_data: base64_data = base64_data.split(",")[1]
@@ -139,35 +168,37 @@ async def upload_image(data: ImageUploadRequest):
         
         filename = f"{uuid.uuid4().hex}.jpg"
         bucket_name = "tradeflow"
-        
-        # ИСПРАВЛЕНИЕ ОШИБКИ PGRST125: Отрезаем /rest/v1 из ссылки
         clean_url = SUPABASE_URL.split('/rest/v1')[0].rstrip('/')
         upload_url = f"{clean_url}/storage/v1/object/{bucket_name}/{filename}"
         
         async with httpx.AsyncClient() as client:
-            res = await client.post(
-                upload_url,
-                content=image_bytes,
-                headers={
-                    "Authorization": f"Bearer {SUPABASE_KEY}",
-                    "apikey": SUPABASE_KEY,
-                    "Content-Type": "image/jpeg"
-                },
-                timeout=15.0
-            )
-            
+            res = await client.post(upload_url, content=image_bytes, headers={"Authorization": f"Bearer {SUPABASE_KEY}", "apikey": SUPABASE_KEY, "Content-Type": "image/jpeg"}, timeout=15.0)
             if res.status_code in (200, 201):
-                public_url = f"{clean_url}/storage/v1/object/public/{bucket_name}/{filename}"
-                return {"url": public_url}
+                return {"url": f"{clean_url}/storage/v1/object/public/{bucket_name}/{filename}"}
             else:
                 raise HTTPException(status_code=400, detail=f"Ошибка Supabase: {res.text}")
-                
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Сбой загрузки: {str(e)}")
 
 @app.get("/api/user")
 async def get_user(user: User = Depends(get_current_user)):
-    return {"username": user.username, "balance": user.balance, "avatar_url": user.avatar_url, "id": user.id}
+    return {"username": user.username, "balance": user.balance, "avatar_url": user.avatar_url, "id": user.id, "role": user.role}
+
+# ИЗМЕНЕНИЕ ПРОФИЛЯ
+@app.put("/api/users/me")
+async def update_profile(data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if data.get("username"):
+        # Проверяем занятость никнейма
+        existing = await db.execute(select(User).filter(User.username == data["username"], User.id != user.id))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Этот никнейм уже занят")
+        user.username = data["username"]
+    
+    if data.get("avatar_url"):
+        user.avatar_url = data["avatar_url"]
+        
+    await db.commit()
+    return {"status": "success"}
 
 @app.get("/")
 async def serve_frontend(request: Request):
@@ -180,7 +211,7 @@ async def get_products(category: str = "All", subcategory: str = "Все", searc
     if subcategory and subcategory != "Все": query = query.filter(Product.subcategory == subcategory)
     if search: query = query.filter(Product.title.ilike(f"%{search}%"))
     result = await db.execute(query)
-    return[{"id": p.id, "title": p.title, "description": p.description, "price": p.price, "category": p.category, "subcategory": p.subcategory, "warranty": p.has_warranty, "seller": u, "images": p.images.split(',') if p.images else []} for p, u in result]
+    return[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "subcategory": p.subcategory, "warranty": p.has_warranty, "seller": u, "images": p.images.split(',') if p.images else []} for p, u in result]
 
 @app.post("/api/sell")
 async def add_product(data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -249,7 +280,7 @@ async def get_user_profile(username: str, db: AsyncSession = Depends(get_db)):
         reviews.append({"id": r.id, "buyer": buyer_name, "text": r.text, "reply": r.seller_reply, "date": date_str})
     
     return {
-        "username": u.username, "avatar_url": u.avatar_url, "id": u.id,
+        "username": u.username, "avatar_url": u.avatar_url, "id": u.id, "role": u.role,
         "products":[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "images":[img for img in p.images.split(',') if img] if p.images else[]} for p in products],
         "reviews": reviews
     }
@@ -280,7 +311,6 @@ async def reply_review(review_id: int, data: dict, user: User = Depends(get_curr
     await db.commit()
     return {"status": "success"}
 
-# --- НОВЫЙ ЭНДПОИНТ: СПИСОК ДИАЛОГОВ ---
 @app.get("/api/chats")
 async def get_chats(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     query = select(PrivateMessage).filter(or_(PrivateMessage.sender_id == user.id, PrivateMessage.receiver_id == user.id)).order_by(PrivateMessage.timestamp.desc())
@@ -332,3 +362,61 @@ async def block_user(username: str, user: User = Depends(get_current_user), db: 
     db.add(block)
     await db.commit()
     return {"status": "blocked"}
+
+# ==========================================
+# ТИКЕТЫ ПОДДЕРЖКИ
+# ==========================================
+@app.post("/api/tickets")
+async def create_ticket(data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    ticket = Ticket(user_id=user.id, category=data['category'], text=data['text'])
+    db.add(ticket)
+    await db.commit()
+    return {"status": "success"}
+
+@app.get("/api/tickets")
+async def get_my_tickets(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    res = await db.execute(select(Ticket).filter_by(user_id=user.id).order_by(Ticket.timestamp.desc()))
+    return[{"id": t.id, "category": t.category, "text": t.text, "status": t.status, "reply": t.admin_reply, "date": t.timestamp.strftime("%d.%m.%Y")} for t in res.scalars().all()]
+
+# ==========================================
+# АДМИН-ПАНЕЛЬ
+# ==========================================
+def require_admin(user: User = Depends(get_current_user)):
+    if user.role != "admin": raise HTTPException(status_code=403, detail="Доступ запрещен")
+    return user
+
+@app.delete("/api/admin/products/{product_id}")
+async def admin_delete_product(product_id: int, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    prod_res = await db.execute(select(Product).filter_by(id=product_id))
+    product = prod_res.scalar_one_or_none()
+    if product:
+        await db.delete(product)
+        await db.commit()
+    return {"status": "deleted"}
+
+@app.post("/api/admin/ban")
+async def admin_ban_user(data: dict, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    target_res = await db.execute(select(User).filter_by(username=data['username']))
+    target = target_res.scalar_one_or_none()
+    if not target: raise HTTPException(404, "Пользователь не найден")
+    
+    days = int(data.get('days', 36500)) # По умолчанию навсегда (100 лет)
+    target.ban_until = datetime.utcnow() + timedelta(days=days)
+    target.ban_reason = data.get('reason', 'Нарушение правил маркетплейса')
+    await db.commit()
+    return {"status": "banned"}
+
+@app.get("/api/admin/tickets")
+async def admin_get_tickets(admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    res = await db.execute(select(Ticket, User.username).join(User, Ticket.user_id == User.id).order_by(Ticket.timestamp.desc()))
+    return[{"id": t.id, "username": u, "category": t.category, "text": t.text, "status": t.status, "reply": t.admin_reply, "date": t.timestamp.strftime("%d.%m.%Y")} for t, u in res]
+
+@app.post("/api/admin/tickets/{ticket_id}/reply")
+async def admin_reply_ticket(ticket_id: int, data: dict, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    res = await db.execute(select(Ticket).filter_by(id=ticket_id))
+    ticket = res.scalar_one_or_none()
+    if ticket:
+        ticket.admin_reply = data['reply']
+        ticket.status = "closed"
+        await db.commit()
+    return {"status": "success"}

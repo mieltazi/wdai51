@@ -11,22 +11,19 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import aliased
 from sqlalchemy import or_, and_
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from database import engine, Base, get_db
-from models import User, Product, Order, PrivateMessage, BlockedUser, Review
+from models import User, Product, Order, PrivateMessage, BlockedUser, Review, Transaction
 
 SECRET_KEY = "tradeflow_super_secret"
 
-# ==========================================
-# КЛЮЧИ ПРИЛОЖЕНИЯ ВКОНТАКТЕ
-# ==========================================
 VK_CLIENT_ID = "54566173" 
-VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET") # Берется из Vercel!
+VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET")
 VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback"
 
-# --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @asynccontextmanager
@@ -38,6 +35,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
+# Глобальный обработчик ошибок, чтобы фронтенд всегда получал JSON, а не HTML 500
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(status_code=500, content={"detail": f"Внутренняя ошибка сервера: {str(exc)}"})
 
 async def get_current_user(authorization: str = Header(None), db: AsyncSession = Depends(get_db)):
     if not authorization or not authorization.startswith("Bearer "):
@@ -52,22 +54,14 @@ async def get_current_user(authorization: str = Header(None), db: AsyncSession =
     except:
         raise HTTPException(status_code=401, detail="Недействительный токен")
 
-class VKTokenRequest(BaseModel):
-    access_token: str
-
-# ==========================================
-# --- БРОНЕБОЙНАЯ АВТОРИЗАЦИЯ VK ID (PKCE) ---
-# ==========================================
+class ImageUploadRequest(BaseModel):
+    image_base64: str
 
 @app.get("/api/auth/vk")
 async def vk_login():
-    # Генерируем правильные ключи для нового API (это убирает Security Error!)
     code_verifier = base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
     code_challenge = base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode('utf-8')).digest()).decode('utf-8').rstrip('=')
-    
-    # Используем правильную новую ссылку id.vk.com
     url = f"https://id.vk.com/authorize?response_type=code&client_id={VK_CLIENT_ID}&redirect_uri={VK_REDIRECT_URI}&code_challenge={code_challenge}&code_challenge_method=S256&state=login"
-    
     response = RedirectResponse(url)
     response.set_cookie(key="vk_code_verifier", value=code_verifier, httponly=True, max_age=600, secure=True, samesite="lax")
     return response
@@ -75,140 +69,73 @@ async def vk_login():
 @app.get("/api/auth/vk/callback")
 async def vk_callback(request: Request, code: str = None, device_id: str = None, state: str = None, error: str = None, error_description: str = None, db: AsyncSession = Depends(get_db)):
     try:
-        if error:
-            return RedirectResponse(url=f"/?error={error_description}")
-        if not code:
-            return RedirectResponse(url="/?error=ВК_не_прислал_код_подтверждения")
+        if error: return RedirectResponse(url=f"/?error={error_description}")
+        if not code: return RedirectResponse(url="/?error=ВК_не_прислал_код_подтверждения")
             
         code_verifier = request.cookies.get("vk_code_verifier")
-        if not code_verifier:
-            return RedirectResponse(url="/?error=Сессия_устарела_попробуйте_еще_раз")
+        if not code_verifier: return RedirectResponse(url="/?error=Сессия_устарела_попробуйте_еще_раз")
 
         async with httpx.AsyncClient() as client:
-            # 1. Получаем токен через новый API VK ID
             token_data_req = {
-                "grant_type": "authorization_code",
-                "client_id": VK_CLIENT_ID,
-                "client_secret": VK_CLIENT_SECRET or "",
-                "code": code,
-                "code_verifier": code_verifier,
-                "device_id": device_id or "",
-                "redirect_uri": VK_REDIRECT_URI,
-                "state": state or "login"
+                "grant_type": "authorization_code", "client_id": VK_CLIENT_ID, "client_secret": VK_CLIENT_SECRET or "",
+                "code": code, "code_verifier": code_verifier, "device_id": device_id or "",
+                "redirect_uri": VK_REDIRECT_URI, "state": state or "login"
             }
-            
             token_res = await client.post("https://id.vk.com/oauth2/auth", data=token_data_req, headers={"Content-Type": "application/x-www-form-urlencoded"})
             token_data = token_res.json()
-            
-            if "error" in token_data:
-                err_msg = token_data.get('error_description', token_data.get('error'))
-                return RedirectResponse(url=f"/?error=Ошибка_токена_{err_msg}")
+            if "error" in token_data: return RedirectResponse(url=f"/?error=Ошибка_токена_{token_data.get('error_description', '')}")
 
             access_token = token_data.get("access_token")
-            
-            # 2. Получение данных пользователя
-            user_res = await client.post("https://id.vk.com/oauth2/user_info", data={
-                "client_id": VK_CLIENT_ID,
-                "access_token": access_token
-            }, headers={"Content-Type": "application/x-www-form-urlencoded"})
+            user_res = await client.post("https://id.vk.com/oauth2/user_info", data={"client_id": VK_CLIENT_ID, "access_token": access_token}, headers={"Content-Type": "application/x-www-form-urlencoded"})
             user_data = user_res.json()
             
             if "user" in user_data:
                 u_info = user_data["user"]
                 vk_user_id = int(u_info.get("user_id"))
-                first_name = u_info.get("first_name", "")
-                last_name = u_info.get("last_name", "")
-                avatar = u_info.get("avatar", "")
+                first_name, last_name, avatar = u_info.get("first_name", ""), u_info.get("last_name", ""), u_info.get("avatar", "")
             else:
-                # Резервный метод (если новый API не отдал данные)
                 old_res = await client.get(f"https://api.vk.com/method/users.get?fields=photo_100&access_token={access_token}&v=5.131")
                 old_data = old_res.json()
                 if "response" in old_data and len(old_data["response"]) > 0:
                     u_info = old_data["response"][0]
                     vk_user_id = int(u_info["id"])
-                    first_name = u_info.get("first_name", "")
-                    last_name = u_info.get("last_name", "")
-                    avatar = u_info.get("photo_100", "")
+                    first_name, last_name, avatar = u_info.get("first_name", ""), u_info.get("last_name", ""), u_info.get("photo_100", "")
                 else:
                     return RedirectResponse(url="/?error=Не_удалось_получить_профиль")
 
-        # 3. Сохраняем пользователя в базу
         res = await db.execute(select(User).filter_by(vk_id=vk_user_id))
         user = res.scalar_one_or_none()
-
         if not user:
-            user = User(
-                vk_id=vk_user_id,
-                username=f"{first_name} {last_name}".strip() or f"User{vk_user_id}",
-                avatar_url=avatar,
-                balance=5000.0
-            )
+            user = User(vk_id=vk_user_id, username=f"{first_name} {last_name}".strip() or f"User{vk_user_id}", avatar_url=avatar, balance=5000.0)
             db.add(user)
+            await db.commit()
+            
+            # Подарочный бонус (записываем в транзакции)
+            tx = Transaction(user_id=user.id, type="topup", amount=5000.0, description="🎁 Приветственный бонус TradeFlow")
+            db.add(tx)
             await db.commit()
             await db.refresh(user)
 
-        # 4. Выдаем токен для сайта
         token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
-        
         response = RedirectResponse(url=f"/?token={token}")
         response.delete_cookie("vk_code_verifier")
         return response
-        
     except Exception as e:
-        # Теперь вместо 500 ошибки юзер увидит красивую всплывашку на сайте с причиной
-        error_msg = str(e).replace(" ", "_")
-        return RedirectResponse(url=f"/?error=Системная_ошибка_{error_msg}")
+        return RedirectResponse(url=f"/?error=Системная_ошибка_{str(e).replace(' ', '_')}")
 
-@app.post("/api/auth/vk/token")
-async def vk_token_auth(data: VKTokenRequest, db: AsyncSession = Depends(get_db)):
-    try:
-        async with httpx.AsyncClient() as client:
-            user_res = await client.post("https://id.vk.com/oauth2/user_info", data={
-                "client_id": VK_CLIENT_ID,
-                "access_token": data.access_token
-            }, headers={"Content-Type": "application/x-www-form-urlencoded"})
-            user_data = user_res.json()
-            
-            if "user" in user_data:
-                u_info = user_data["user"]
-                vk_user_id = int(u_info.get("user_id"))
-                first_name = u_info.get("first_name", "")
-                last_name = u_info.get("last_name", "")
-                avatar = u_info.get("avatar", "")
-            else:
-                old_res = await client.get(f"https://api.vk.com/method/users.get?fields=photo_100&access_token={data.access_token}&v=5.131")
-                old_data = old_res.json()
-                if "response" in old_data and len(old_data["response"]) > 0:
-                    u_info = old_data["response"][0]
-                    vk_user_id = int(u_info["id"])
-                    first_name = u_info.get("first_name", "")
-                    last_name = u_info.get("last_name", "")
-                    avatar = u_info.get("photo_100", "")
-                else:
-                    return JSONResponse(status_code=400, content={"detail": "Не удалось получить профиль ВК"})
-                    
-        res = await db.execute(select(User).filter_by(vk_id=vk_user_id))
-        user = res.scalar_one_or_none()
-
-        if not user:
-            user = User(
-                vk_id=vk_user_id,
-                username=f"{first_name} {last_name}".strip() or f"User{vk_user_id}",
-                avatar_url=avatar,
-                balance=5000.0
-            )
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
-
-        token = jwt.encode({"sub": str(user.id), "exp": datetime.utcnow() + timedelta(days=7)}, SECRET_KEY, algorithm="HS256")
-        return {"token": token}
-        
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"detail": f"Ошибка сервера: {str(e)}"})
-
-
-# --- ОСТАЛЬНЫЕ ЭНДПОИНТЫ ---
+@app.post("/api/upload_image")
+async def upload_image(data: ImageUploadRequest):
+    base64_data = data.image_base64
+    if "," in base64_data: base64_data = base64_data.split(",")[1]
+    image_bytes = base64.b64decode(base64_data)
+    
+    async with httpx.AsyncClient() as client:
+        files = {'file': ('image.jpg', image_bytes, 'image/jpeg')}
+        res = await client.post('https://telegra.ph/upload', files=files)
+        res_data = res.json()
+        if isinstance(res_data, list) and "src" in res_data[0]:
+            return {"url": "https://telegra.ph" + res_data[0]["src"]}
+        raise HTTPException(status_code=400, detail="Ошибка загрузки изображения")
 
 @app.get("/api/user")
 async def get_user(user: User = Depends(get_current_user)):
@@ -229,7 +156,7 @@ async def get_products(category: str = "All", subcategory: str = "Все", searc
 
 @app.post("/api/sell")
 async def add_product(data: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    images_str = ",".join(data.get('images', [])[:8])
+    images_str = ",".join([img for img in data.get('images', []) if img.strip()])[:2000]
     new_product = Product(
         seller_id=user.id, category=data['category'], subcategory=data.get('subcategory', 'Разное'),
         title=data['title'], description=data['description'], has_warranty=data['warranty'],
@@ -247,18 +174,30 @@ async def buy_product(product_id: int, user: User = Depends(get_current_user), d
     if product.seller_id == user.id: raise HTTPException(400, "Вы не можете купить свой собственный товар")
     if user.balance < product.price: raise HTTPException(400, "Недостаточно средств")
     
+    # Списание у покупателя
     user.balance -= product.price
-    product.status = "sold"
+    tx_buyer = Transaction(user_id=user.id, type="spend", amount=-product.price, description=f"🛒 Покупка: {product.title}")
     
+    # Начисление продавцу
     seller_res = await db.execute(select(User).filter_by(id=product.seller_id))
     seller = seller_res.scalar_one()
     seller.balance += product.price
+    tx_seller = Transaction(user_id=seller.id, type="income", amount=product.price, description=f"💸 Продажа: {product.title}")
     
+    product.status = "sold"
     order_code = "ORD-" + uuid.uuid4().hex[:8].upper()
     new_order = Order(order_code=order_code, buyer_id=user.id, seller_id=product.seller_id, product_id=product.id, price=product.price)
-    db.add(new_order)
+    
+    db.add_all([tx_buyer, tx_seller, new_order])
     await db.commit()
     return {"status": "success", "order_code": order_code, "data": product.account_data}
+
+@app.get("/api/finances")
+async def get_finances(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    query = select(Transaction).filter_by(user_id=user.id).order_by(Transaction.timestamp.desc())
+    result = await db.execute(query)
+    txs = result.scalars().all()
+    return[{"id": t.id, "type": t.type, "amount": t.amount, "description": t.description, "date": t.timestamp.strftime("%d.%m.%Y %H:%M")} for t in txs]
 
 @app.get("/api/purchases")
 async def get_purchases(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -275,12 +214,18 @@ async def get_user_profile(username: str, db: AsyncSession = Depends(get_db)):
     prod_res = await db.execute(select(Product).filter_by(seller_id=u.id, status="active"))
     products = prod_res.scalars().all()
     
-    rev_res = await db.execute(select(Review, User.username).join(User, Review.buyer_id == User.id).filter(Review.seller_id == u.id))
-    reviews =[{"id": r.id, "buyer": buyer_name, "text": r.text, "reply": r.seller_reply, "date": r.timestamp.strftime("%d.%m.%Y")} for r, buyer_name in rev_res]
+    # ИСПРАВЛЕНА ОШИБКА 500 (AmbiguousForeignKeysError)
+    Buyer = aliased(User)
+    rev_res = await db.execute(select(Review, Buyer.username).join(Buyer, Review.buyer_id == Buyer.id).filter(Review.seller_id == u.id))
+    
+    reviews =[]
+    for r, buyer_name in rev_res:
+        date_str = r.timestamp.strftime("%d.%m.%Y") if r.timestamp else "Недавно"
+        reviews.append({"id": r.id, "buyer": buyer_name, "text": r.text, "reply": r.seller_reply, "date": date_str})
     
     return {
         "username": u.username, "avatar_url": u.avatar_url, "id": u.id,
-        "products":[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "images": p.images.split(',') if p.images else []} for p in products],
+        "products":[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "images": [img for img in p.images.split(',') if img] if p.images else[]} for p in products],
         "reviews": reviews
     }
 

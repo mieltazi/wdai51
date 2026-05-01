@@ -18,7 +18,7 @@ class Product(Base):
     subcategory = Column(String, default="Разное")
     title = Column(String)
     description = Column(String, default="")
-    images = Column(String, default="") # Ссылки на фото через запятую
+    images = Column(String, default="")
     has_warranty = Column(Boolean, default=False)
     price = Column(Float)
     account_data = Column(String)
@@ -41,7 +41,7 @@ class Review(Base):
     buyer_id = Column(Integer, ForeignKey("users.id"))
     seller_id = Column(Integer, ForeignKey("users.id"))
     text = Column(String)
-    seller_reply = Column(String, nullable=True) # Ответ продавца
+    seller_reply = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 class PrivateMessage(Base):
@@ -57,3 +57,13 @@ class BlockedUser(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     blocked_id = Column(Integer, ForeignKey("users.id"))
+
+# НОВАЯ ТАБЛИЦА: ИСТОРИЯ ФИНАНСОВ
+class Transaction(Base):
+    __tablename__ = "transactions"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    type = Column(String) # "topup", "withdraw", "spend", "income"
+    amount = Column(Float)
+    description = Column(String)
+    timestamp = Column(DateTime, default=datetime.utcnow)

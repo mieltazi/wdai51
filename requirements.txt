@@ -5,5 +5,5 @@ asyncpg
 httpx
 PyJWT
 jinja2
-python-multipart
-greenlet
+passlib
+argon2-cffi

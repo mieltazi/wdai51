@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean, Text
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean
 from datetime import datetime
 from database import Base
 
@@ -6,13 +6,9 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     vk_id = Column(Integer, unique=True, index=True)
-    username = Column(String, unique=True)
+    username = Column(String)
     avatar_url = Column(String, nullable=True)
     balance = Column(Float, default=0.0)
-    role = Column(String, default="user") # user, admin
-    is_blocked = Column(Boolean, default=False)
-    block_reason = Column(String, nullable=True)
-    block_until = Column(DateTime, nullable=True)
 
 class Product(Base):
     __tablename__ = "products"
@@ -26,7 +22,7 @@ class Product(Base):
     has_warranty = Column(Boolean, default=False)
     price = Column(Float)
     account_data = Column(String)
-    status = Column(String, default="active") # active, sold, deleted
+    status = Column(String, default="active")
 
 class Order(Base):
     __tablename__ = "orders"
@@ -62,22 +58,12 @@ class BlockedUser(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     blocked_id = Column(Integer, ForeignKey("users.id"))
 
+# НОВАЯ ТАБЛИЦА: ИСТОРИЯ ФИНАНСОВ
 class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    type = Column(String)
+    type = Column(String) # "topup", "withdraw", "spend", "income"
     amount = Column(Float)
     description = Column(String)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-
-class Report(Base):
-    __tablename__ = "reports"
-    id = Column(Integer, primary_key=True, index=True)
-    reporter_id = Column(Integer, ForeignKey("users.id"))
-    target_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
-    category = Column(String)
-    text = Column(Text)
-    status = Column(String, default="open")
     timestamp = Column(DateTime, default=datetime.utcnow)

@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import aliased
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, text
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from database import engine, Base, get_db
@@ -24,20 +24,15 @@ VK_CLIENT_ID = "54566173"
 VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET")
 VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback"
 
-# ==========================================
-# КЛЮЧИ SUPABASE (ДЛЯ ЗАГРУЗКИ ФОТО)
-# ==========================================
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all, checkfirst=True)
-        # АВТО-ИСПРАВЛЕНИЕ БАЗЫ ДАННЫХ: Добавляем колонку images, если её нет
         try:
             await conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS images VARCHAR DEFAULT ''"))
         except Exception:
@@ -48,7 +43,6 @@ app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# Глобальный обработчик ошибок, чтобы фронтенд всегда получал JSON, а не HTML 500
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": f"Внутренняя ошибка сервера: {str(exc)}"})
@@ -121,8 +115,6 @@ async def vk_callback(request: Request, code: str = None, device_id: str = None,
             user = User(vk_id=vk_user_id, username=f"{first_name} {last_name}".strip() or f"User{vk_user_id}", avatar_url=avatar, balance=5000.0)
             db.add(user)
             await db.commit()
-            
-            # Подарочный бонус (записываем в транзакции)
             tx = Transaction(user_id=user.id, type="topup", amount=5000.0, description="🎁 Приветственный бонус TradeFlow")
             db.add(tx)
             await db.commit()
@@ -137,7 +129,6 @@ async def vk_callback(request: Request, code: str = None, device_id: str = None,
 
 @app.post("/api/upload_image")
 async def upload_image(data: ImageUploadRequest):
-    # Проверка: если Vercel не увидел ключи
     if not SUPABASE_URL or not SUPABASE_KEY:
         raise HTTPException(status_code=500, detail="Ключи Supabase не настроены в Vercel")
         
@@ -146,12 +137,12 @@ async def upload_image(data: ImageUploadRequest):
         if "," in base64_data: base64_data = base64_data.split(",")[1]
         image_bytes = base64.b64decode(base64_data)
         
-        # Генерируем уникальное имя файла
         filename = f"{uuid.uuid4().hex}.jpg"
-        bucket_name = "tradeflow" # Корзина должна называться именно так!
+        bucket_name = "tradeflow"
         
-        # Ссылка для загрузки в Supabase Storage
-        upload_url = f"{SUPABASE_URL}/storage/v1/object/{bucket_name}/{filename}"
+        # ИСПРАВЛЕНИЕ ОШИБКИ PGRST125: Отрезаем /rest/v1 из ссылки
+        clean_url = SUPABASE_URL.split('/rest/v1')[0].rstrip('/')
+        upload_url = f"{clean_url}/storage/v1/object/{bucket_name}/{filename}"
         
         async with httpx.AsyncClient() as client:
             res = await client.post(
@@ -159,15 +150,14 @@ async def upload_image(data: ImageUploadRequest):
                 content=image_bytes,
                 headers={
                     "Authorization": f"Bearer {SUPABASE_KEY}",
-                    "apikey": SUPABASE_KEY,  # <--- ДОБАВИЛИ ЭТУ СТРОКУ
+                    "apikey": SUPABASE_KEY,
                     "Content-Type": "image/jpeg"
                 },
                 timeout=15.0
             )
             
             if res.status_code in (200, 201):
-                # Формируем публичную ссылку на картинку
-                public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{filename}"
+                public_url = f"{clean_url}/storage/v1/object/public/{bucket_name}/{filename}"
                 return {"url": public_url}
             else:
                 raise HTTPException(status_code=400, detail=f"Ошибка Supabase: {res.text}")
@@ -212,11 +202,9 @@ async def buy_product(product_id: int, user: User = Depends(get_current_user), d
     if product.seller_id == user.id: raise HTTPException(400, "Вы не можете купить свой собственный товар")
     if user.balance < product.price: raise HTTPException(400, "Недостаточно средств")
     
-    # Списание у покупателя
     user.balance -= product.price
     tx_buyer = Transaction(user_id=user.id, type="spend", amount=-product.price, description=f"🛒 Покупка: {product.title}")
     
-    # Начисление продавцу
     seller_res = await db.execute(select(User).filter_by(id=product.seller_id))
     seller = seller_res.scalar_one()
     seller.balance += product.price
@@ -252,7 +240,6 @@ async def get_user_profile(username: str, db: AsyncSession = Depends(get_db)):
     prod_res = await db.execute(select(Product).filter_by(seller_id=u.id, status="active"))
     products = prod_res.scalars().all()
     
-    # ИСПРАВЛЕНА ОШИБКА 500 (AmbiguousForeignKeysError)
     Buyer = aliased(User)
     rev_res = await db.execute(select(Review, Buyer.username).join(Buyer, Review.buyer_id == Buyer.id).filter(Review.seller_id == u.id))
     
@@ -263,7 +250,7 @@ async def get_user_profile(username: str, db: AsyncSession = Depends(get_db)):
     
     return {
         "username": u.username, "avatar_url": u.avatar_url, "id": u.id,
-        "products":[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "images": [img for img in p.images.split(',') if img] if p.images else[]} for p in products],
+        "products":[{"id": p.id, "title": p.title, "price": p.price, "category": p.category, "images":[img for img in p.images.split(',') if img] if p.images else[]} for p in products],
         "reviews": reviews
     }
 
@@ -292,6 +279,27 @@ async def reply_review(review_id: int, data: dict, user: User = Depends(get_curr
     review.seller_reply = data['reply']
     await db.commit()
     return {"status": "success"}
+
+# --- НОВЫЙ ЭНДПОИНТ: СПИСОК ДИАЛОГОВ ---
+@app.get("/api/chats")
+async def get_chats(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    query = select(PrivateMessage).filter(or_(PrivateMessage.sender_id == user.id, PrivateMessage.receiver_id == user.id)).order_by(PrivateMessage.timestamp.desc())
+    res = await db.execute(query)
+    msgs = res.scalars().all()
+    
+    contacts_dict = {}
+    for m in msgs:
+        other_id = m.receiver_id if m.sender_id == user.id else m.sender_id
+        if other_id not in contacts_dict:
+            contacts_dict[other_id] = m.text
+            
+    chat_list =[]
+    for uid, last_msg in contacts_dict.items():
+        u_res = await db.execute(select(User).filter_by(id=uid))
+        u = u_res.scalar_one_or_none()
+        if u:
+            chat_list.append({"username": u.username, "avatar_url": u.avatar_url, "last_message": last_msg})
+    return chat_list
 
 @app.get("/api/messages/{username}")
 async def get_private_chat(username: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):

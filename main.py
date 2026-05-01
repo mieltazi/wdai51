@@ -18,15 +18,26 @@ from pydantic import BaseModel
 from database import engine, Base, get_db
 from models import User, Product, Order, PrivateMessage, BlockedUser, Review, Transaction, Ticket
 
+# Загружаем переменные из .env файла для локального тестирования
+from dotenv import load_dotenv
+load_dotenv()
+
 SECRET_KEY = "tradeflow_super_secret"
 
+# ==========================================
+# КЛЮЧИ ПРИЛОЖЕНИЯ ВКОНТАКТЕ
+# ==========================================
 VK_CLIENT_ID = "54566173" 
 VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET")
-VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback"
+VK_REDIRECT_URI = os.getenv("VK_REDIRECT_URI", "https://wdai51.vercel.app/api/auth/vk/callback") # Добавляем запасной вариант
 
+# ==========================================
+# КЛЮЧИ SUPABASE (ДЛЯ ЗАГРУЗКИ ФОТО)
+# ==========================================
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
+# --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @asynccontextmanager

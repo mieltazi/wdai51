@@ -1,9 +1,8 @@
 fastapi
 uvicorn
-sqlalchemy
+sqlalchemy[asyncio]
 asyncpg
 httpx
-PyJWT
-jinja2
-passlib
-argon2-cffi
+pyjwt
+pydantic
+python-dotenv

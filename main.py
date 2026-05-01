@@ -24,12 +24,24 @@ VK_CLIENT_ID = "54566173"
 VK_CLIENT_SECRET = os.getenv("VK_CLIENT_SECRET")
 VK_REDIRECT_URI = "https://wdai51.vercel.app/api/auth/vk/callback"
 
+# ==========================================
+# КЛЮЧИ SUPABASE (ДЛЯ ЗАГРУЗКИ ФОТО)
+# ==========================================
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+# --- НАСТРОЙКА ПУТЕЙ ДЛЯ VERCEL ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+        # АВТО-ИСПРАВЛЕНИЕ БАЗЫ ДАННЫХ: Добавляем колонку images, если её нет
+        try:
+            await conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS images VARCHAR DEFAULT ''"))
+        except Exception:
+            pass
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -125,6 +137,7 @@ async def vk_callback(request: Request, code: str = None, device_id: str = None,
 
 @app.post("/api/upload_image")
 async def upload_image(data: ImageUploadRequest):
+    # Проверка: если Vercel не увидел ключи, выдаем понятную ошибку
     if not SUPABASE_URL or not SUPABASE_KEY:
         raise HTTPException(status_code=500, detail="Ключи Supabase не настроены в Vercel")
         
@@ -135,7 +148,7 @@ async def upload_image(data: ImageUploadRequest):
         
         # Генерируем уникальное имя файла
         filename = f"{uuid.uuid4().hex}.jpg"
-        bucket_name = "tradeflow"
+        bucket_name = "tradeflow" # Убедитесь, что корзина в Supabase называется именно так!
         
         # Ссылка для загрузки в Supabase Storage
         upload_url = f"{SUPABASE_URL}/storage/v1/object/{bucket_name}/{filename}"
